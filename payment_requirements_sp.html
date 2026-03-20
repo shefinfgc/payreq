@@ -3217,10 +3217,15 @@ function loadRequests(){
   return spGet(url).then(function(data){
     var items=data.value||[];
     if(items.length>0){
-      /* Log all fields for diagnosis */
-      console.log('[SP] List fields returned:',JSON.stringify(Object.keys(items[0])));
-      console.log('[SP] First item:',JSON.stringify(items[0]));
-      console.log('[SP] AmountWithoutVAT sample:',items[0]['AmountWithoutVAT']);
+      var first=items[0];
+      /* Show ALL field names from SP response in a visible overlay */
+      var allKeys=Object.keys(first).sort();
+      var d=document.createElement('div');
+      d.id='sp-diag-overlay';
+      d.style.cssText='position:fixed;top:50px;right:10px;z-index:9999;background:#fff;border:2px solid red;padding:10px;font-size:10px;max-width:320px;max-height:400px;overflow:auto;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3)';
+      d.innerHTML='<b style="color:red">SP FIELD NAMES (click to close)</b><br><br>'+allKeys.map(function(k){var v=first[k];var style=(typeof v==='number'||k.toLowerCase().indexOf('amount')>=0||k.toLowerCase().indexOf('amt')>=0)?'color:blue;font-weight:bold':'';return '<span style="'+style+'">'+k+'='+v+'</span>';}).join('<br>')+'';
+      d.onclick=function(){d.remove();};
+      document.body.appendChild(d);
     }
     /* Map SP status string to app status key */
     function spStat(s){
@@ -3249,11 +3254,11 @@ function loadRequests(){
         meth:fldG(item,['PaymentMethod','Method','Method0','PayMethod'])||'',
         inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice'])||'',
         vat:fldG(item,['VATApplicable_x003f_','VATApplicable','VAT','Vat'])||'yes',
-        excl:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
+        excl:parseFloat(fldG(item,['AmountWithoutVAT','Amount_x0020_Without_x0020_VAT','AmtWithoutVAT','AmountExclVAT','ExclVATAmount','ExcVATAmount','NetAmount','Amount','Amount0','BaseAmount','InvoiceAmount'])||0)||0,
         relDate:spDate(fldG(item,['PlannedReleaseDate','ReleaseDate','RelDate'])||''),
         reqDate:spDate(fldG(item,['Due_x0020_Date','DueDate','RequiredDate','ReqDate'])||''),
-        reqAmt:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
-        apprAmt:parseFloat(fldG(item,['AmountWithoutVAT','ApprovedAmount'])||0)||0,
+        reqAmt:parseFloat(fldG(item,['AmountWithoutVAT','Amount_x0020_Without_x0020_VAT','AmtWithoutVAT','AmountExclVAT','ExclVATAmount','ExcVATAmount','NetAmount','Amount','Amount0','BaseAmount','InvoiceAmount'])||0)||0,
+        apprAmt:parseFloat(fldG(item,['AmountWithoutVAT','Amount_x0020_Without_x0020_VAT','AmtWithoutVAT','AmountExclVAT','ExclVATAmount','ExcVATAmount','NetAmount','Amount','Amount0','ApprovedAmount','BaseAmount','InvoiceAmount'])||0)||0,
         rejRsn:(fldG(item,['Reason','RejRsn','RejectionReason'])||'').split(';').filter(Boolean),
         rejCmt:fldG(item,['Comments','Comment','RejCmt','RejectionComment'])||'',
         naReason:fldG(item,['NaReason','NAR','NAType','NotApplicableReason'])||'',
