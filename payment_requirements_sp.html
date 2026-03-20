@@ -847,9 +847,14 @@ function calcDueDate(r){
   if(r.pt==='advance')d.setDate(d.getDate()+7);else d.setDate(d.getDate()+pd.terms);
   return d;
 }
+function getVatOK(r){
+  /* VAT applicability comes from the PO list if PO is linked, else falls back to record's own VAT field */
+  if(r.po&&poData[r.po])return poData[r.po].vatOK;
+  return r.vat==='yes'||r.vat===true||r.vat==='Yes';
+}
 function getTot(r){
   if(r.type==='internal')return parseFloat(r.apprAmt||r.reqAmt)||0;
-  return(r.excl||0)*(r.vat==='yes'?1.05:1);
+  return(r.excl||0)*(getVatOK(r)?1.05:1);
 }
 function getExcl(r){return r.excl||0;}
 function getPaidAmt(r){
@@ -1008,7 +1013,7 @@ function renderUpcoming(days){
 }
 
 /* ═══════════ ALL REQUESTS ═══════════ */
-var listCols=[{key:'ref',lbl:'Ref no',w:90},{key:'date',lbl:'Date',w:80},{key:'requester',lbl:'Supplier / requester',w:160},{key:'inv',lbl:'Invoice no',w:100},{key:'payee',lbl:'Payee name',w:130},{key:'paidto',lbl:'Paid to',w:120},{key:'meth',lbl:'Method',w:90},{key:'amt',lbl:'Amount (AED)',w:110},{key:'po',lbl:'PO no',w:80},{key:'due',lbl:'Due date',w:80},{key:'relDate',lbl:'Release date',w:90},{key:'status',lbl:'Status',w:100}];
+var listCols=[{key:'ref',lbl:'Ref no',w:90},{key:'date',lbl:'Date',w:80},{key:'requester',lbl:'Supplier / requester',w:160},{key:'inv',lbl:'Invoice no',w:100},{key:'payee',lbl:'Payee name',w:130},{key:'paidto',lbl:'Paid to',w:120},{key:'meth',lbl:'Method',w:90},{key:'excl',lbl:'Excl VAT (AED)',w:110},{key:'vatAmt',lbl:'VAT (AED)',w:90},{key:'amt',lbl:'Total (AED)',w:110},{key:'po',lbl:'PO no',w:80},{key:'due',lbl:'Due date',w:80},{key:'relDate',lbl:'Release date',w:90},{key:'status',lbl:'Status',w:100}];
 function renderListChips(){
   var el=document.getElementById('list-chips');if(!el)return;el.innerHTML='';
   ['all','review','accepted','approved','rejected','paid','na','overdue'].forEach(function(c){var sp=document.createElement('span');sp.className='chip'+(activeChip===c?' on':'');sp.textContent=c==='all'?'All':c==='overdue'?'Overdue':(spLbl[c]||c);sp.onclick=function(){activeChip=c;renderListChips();renderList();};el.appendChild(sp);});
@@ -1020,7 +1025,7 @@ function renderList(){
   document.getElementById('list-thead').innerHTML=listCols.map(function(c){var arr=sortCol===c.key?(sortDir===1?' ▲':' ▼'):' ⇅';return'<th style="min-width:'+c.w+'px" onclick="sortList(\''+c.key+'\')">'+(c.lbl)+arr+'</th>';}).join('');
   var totalAmt=0;
   document.getElementById('list-body').innerHTML=recs.map(function(r){
-    var due=calcDueDate(r);var od=isOverdue(r);var t=getTot(r);totalAmt+=t;
+    var due=calcDueDate(r);var od=isOverdue(r);var t=getTot(r);var excl=r.excl||0;var vat=getVatOK(r)?excl*0.05:0;totalAmt+=t;
     var isPmtRow=(r.status==='paid'||r.status==='partially-paid');
     var pmtBtn=isPmtRow?'<button onclick="event.stopPropagation();openPmtDetail(\''+r.ref+'\',event)" style="margin-left:4px;border:0.5px solid var(--blue-border);background:var(--blue-bg);color:var(--blue-text);border-radius:5px;padding:2px 7px;font-size:9px;cursor:pointer;font-family:inherit;white-space:nowrap">&#128196; View</button>':'';
     return'<tr class="'+(od?'overdue':'')+'" onclick="loadRec(\''+r.ref+'\');goPg(\'pg-review\',document.querySelectorAll(\'.tnb\')[2])">'
@@ -1031,16 +1036,19 @@ function renderList(){
       +'<td>'+(r.payee||'—')+'</td>'
       +'<td>'+(r.paidto||'—')+'</td>'
       +'<td>'+(r.meth||'—')+'</td>'
+      +'<td class="amt-col">'+fN(excl)+'</td>'
+      +'<td class="amt-col">'+fN(vat)+'</td>'
       +'<td class="amt-col">'+fN(t)+'</td>'
       +'<td>'+(r.po||'—')+'</td>'
       +'<td style="'+(od?'color:#C0392B;font-weight:600':'')+'">'+(!od&&due?fD(due):od?'OVERDUE':'—')+'</td>'
       +'<td>'+(r.relDate||'—')+'</td>'
       +'<td><span class="sp '+(spCls[r.status]||'s-rev')+'">'+(spLbl[r.status]||r.status)+'</span>'+pmtBtn+'</td>'
       +'</tr>';
-  }).join('')||'<tr><td colspan="12" style="text-align:center;padding:16px;color:var(--txt2)">No records found</td></tr>';
-  document.getElementById('list-tfoot').innerHTML='<td colspan="7" style="padding:7px 10px;font-size:10px;color:var(--txt2)">'+recs.length+' record(s)</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">AED '+fN(totalAmt)+'</td><td colspan="4"></td>';
+  }).join('')||'<tr><td colspan="14" style="text-align:center;padding:16px;color:var(--txt2)">No records found</td></tr>'
+;
+  document.getElementById('list-tfoot').innerHTML='<td colspan="7" style="padding:7px 10px;font-size:10px;color:var(--txt2)">'+recs.length+' record(s)</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">'+fN(recs.reduce(function(s,r){return s+(r.excl||0);},0))+'</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">'+fN(recs.reduce(function(s,r){return s+(getVatOK(r)?(r.excl||0)*0.05:0);},0))+'</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">AED '+fN(totalAmt)+'</td><td colspan="4"></td>';
 }
-function getSV(r,col){if(col==='amt')return getTot(r);if(col==='due'){var d=calcDueDate(r);return d?d.getTime():0;}if(col==='relDate'){var rd=r.relDate?new Date(r.relDate):null;return rd?rd.getTime():0;}return(r[col]||'').toString().toLowerCase();}
+function getSV(r,col){if(col==='amt')return getTot(r);if(col==='excl')return r.excl||0;if(col==='vatAmt')return getVatOK(r)?(r.excl||0)*0.05:0;if(col==='due'){var d=calcDueDate(r);return d?d.getTime():0;}if(col==='relDate'){var rd=r.relDate?new Date(r.relDate):null;return rd?rd.getTime():0;}return(r[col]||'').toString().toLowerCase();}
 function sortList(col){sortDir=(sortCol===col)?-sortDir:1;sortCol=col;renderList();}
 
 /* ═══════════ SIDEBAR ═══════════ */
@@ -3276,16 +3284,18 @@ function loadPOData(){
     }
     poData={};
     items.forEach(function(item){
-      var poNo=fldG(item,['Title','PONo','PO_x0020_No','PONumber','POReference'])||(String(item.Id));
+      var poNo=fldG(item,['PONumber','Title','PONo','PO_x0020_No','POReference'])||(String(item.Id));
+      var vatVal=fldG(item,['VAT_x0020_Applicable','VATApplicable','VatOK']);
+      var advVal=fldG(item,['Advance_x0020_Applicable','AdvanceOK','AdvOK']);
       poData[poNo]={
         _spId:item.Id,
-        total:parseFloat(fldG(item,['POValue','TotalValue','ContractValue','Amount','Value','POAmount'])||0)||0,
-        paid:parseFloat(fldG(item,['PaidAmount','Paid','PaidAmt','AmountPaid'])||0)||0,
-        advOK:!!(fldG(item,['AdvanceOK','AdvOK','AllowAdvance','AdvanceAllowed'])),
-        advPct:parseFloat(fldG(item,['AdvancePct','AdvPct','AdvancePercent','AdvancePercentage'])||0)||0,
-        terms:parseInt(fldG(item,['PaymentTerms','Terms','NetTerms','PayTerms'])||30)||30,
-        project:fldG(item,['ProjectNo','Project','ProjectNumber','ProjectRef'])||'',
-        vatOK:!!(fldG(item,['VatOK','VATOk','VATApplicable','VATStatus']))
+        total:parseFloat(fldG(item,['PurchaseOrderValue','PurchaseOrderNalue','POValue','TotalValue','ContractValue'])||0)||0,
+        paid:parseFloat(fldG(item,['PaidAmount','Paid','PaidAmt'])||0)||0,
+        advOK:advVal==='Yes'||advVal===true||advVal==='true'||advVal==='yes',
+        advPct:parseFloat(fldG(item,['Advance_x0020_Percentage','AdvancePct','AdvPct'])||0)||0,
+        terms:parseInt(fldG(item,['PaymentTerms_x0028_inDays_x0029_','PaymentTerms','Terms'])||30)||30,
+        project:fldG(item,['ProjectNo','Project','ProjectNumber'])||'',
+        vatOK:vatVal==='Yes'||vatVal===true||vatVal==='true'||vatVal==='yes'
       };
     });
     sdData.po=Object.keys(poData);
