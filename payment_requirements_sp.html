@@ -588,48 +588,65 @@ hr.div{border:none;border-top:1px solid var(--border);margin:16px 0}
 var MSAL_CLIENT_ID = 'a92edd7d-364e-4bcc-bd6c-7f992d4b2ba4';
 var MSAL_TENANT_ID = 'e4bbb04c-a21e-4970-b74c-7272f0cb72d2';
 
-var msalInstance = new msal.PublicClientApplication({
-  auth:{
-    clientId: MSAL_CLIENT_ID,
-    authority: 'https://login.microsoftonline.com/' + MSAL_TENANT_ID,
-    redirectUri: window.location.origin + window.location.pathname
-  },
-  cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:false }
-});
-
+var msalInstance = null;
 var TOKEN_REQUEST = { scopes:['https://fgcuae.sharepoint.com/.default'] };
 var _accessToken = null;
 
+function initMsal(){
+  if(typeof msal === 'undefined'){
+    document.getElementById('login-err').textContent='MSAL library failed to load. Check internet connection.';
+    document.getElementById('login-err').style.display='block';
+    return false;
+  }
+  try{
+    msalInstance = new msal.PublicClientApplication({
+      auth:{
+        clientId: MSAL_CLIENT_ID,
+        authority: 'https://login.microsoftonline.com/' + MSAL_TENANT_ID,
+        redirectUri: window.location.origin + window.location.pathname
+      },
+      cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:false }
+    });
+    return true;
+  }catch(e){
+    document.getElementById('login-err').textContent='MSAL init error: '+e.message;
+    document.getElementById('login-err').style.display='block';
+    return false;
+  }
+}
+
 async function getToken(){
+  if(!msalInstance) throw new Error('MSAL not initialized');
   var acct = msalInstance.getAllAccounts()[0];
   if(!acct) throw new Error('Not signed in');
   try{
-    var r = await msalInstance.acquireTokenSilent({...TOKEN_REQUEST, account:acct});
+    var r = await msalInstance.acquireTokenSilent(Object.assign({},TOKEN_REQUEST,{account:acct}));
     _accessToken = r.accessToken;
     return _accessToken;
   }catch(e){
-    var r = await msalInstance.acquireTokenPopup({...TOKEN_REQUEST, account:acct});
+    var r = await msalInstance.acquireTokenPopup(Object.assign({},TOKEN_REQUEST,{account:acct}));
     _accessToken = r.accessToken;
     return _accessToken;
   }
 }
 
 async function doLogin(){
-  document.getElementById('login-err').style.display='none';
+  var errEl=document.getElementById('login-err');
+  errEl.style.display='none';
+  if(!msalInstance && !initMsal()) return;
   try{
     var r = await msalInstance.loginPopup(TOKEN_REQUEST);
     _accessToken = r.accessToken;
     document.getElementById('login-screen').style.display='none';
     loadAllData();
   }catch(e){
-    var errEl=document.getElementById('login-err');
     errEl.textContent='Login failed: '+e.message;
     errEl.style.display='block';
   }
 }
 
 function doLogout(){
-  msalInstance.logoutPopup();
+  if(msalInstance) msalInstance.logoutPopup();
 }
 
 // ─── SP CONFIG ───────────────────────────────────────────────────────────────
@@ -1811,16 +1828,14 @@ document.querySelectorAll('.modal-bg').forEach(function(m){
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 (async function(){
-  // Handle redirect response (if using redirect flow)
+  if(!initMsal()){ document.getElementById('login-screen').style.display='flex'; return; }
   await msalInstance.handleRedirectPromise().catch(function(){});
   var accounts = msalInstance.getAllAccounts();
   if(accounts.length > 0){
-    // Already signed in — load data directly
     document.getElementById('login-screen').style.display='none';
     document.getElementById('btn-logout').style.display='';
     loadAllData();
   } else {
-    // Show login screen
     document.getElementById('login-screen').style.display='flex';
   }
 })();
