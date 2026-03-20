@@ -177,7 +177,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:12px;background:var(-
 
 <!-- DASHBOARD -->
 <div class="pg on" id="pg-dash">
-  <div style="font-size:15px;font-weight:600;color:var(--txt);margin-bottom:14px">Dashboard <span style="font-size:11px;font-weight:400;color:var(--txt2)">— March 2026</span></div>
+  <div style="font-size:15px;font-weight:600;color:var(--txt);margin-bottom:14px">Dashboard <span id="dash-month-label" style="font-size:11px;font-weight:400;color:var(--txt2)"></span></div>
   <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px" id="dash-kpis"></div>
   <div class="r2" style="margin-bottom:0">
     <div class="card">
@@ -819,7 +819,7 @@ function sbToggleSortDir(){
 }
 
 var poData={};
-var bankList=['ADCB','RAK Bank','Emirates NBD','Dubai Islamic Bank','First Abu Dhabi Bank','Mashreq','ENBD'];
+var bankList=[];
 var sdData={po:[],payee:[],paidto:[],'payee-i':[],'paidto-i':[],bank:bankList.slice()};
 var docDefs={
   advance:[{id:'inv',label:'Invoice',req:true}],
@@ -837,7 +837,7 @@ var records={};
 function fN(n){return parseFloat(n||0).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fD(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
 function parseDate(s){if(!s)return null;var p=s.split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(s);}
-function today(){return new Date(2026,2,17);}
+function today(){return new Date();}
 function isOverdue(r){var due=calcDueDate(r);if(!due)return false;return due<today()&&(r.status==='review'||r.status==='accepted'||r.status==='approved');}
 function calcDueDate(r){
   if(r.type==='internal'){return r.reqDate?parseDate(r.reqDate):null;}
@@ -2894,7 +2894,8 @@ var BULK_REQUIRED=['Date','Requester','Description','Payee','Paid To','Method','
 
 function downloadTemplate(){
   var header=BULK_COLS.join(',');
-  var example='17/03/2026,ahmed.ali@fgcuae.com,Office furniture procurement,DataHub Group,DataHub Group,Bank Transfer,15000,2026-03-28,Q1 purchase';
+  var d=today();var ds=fD(d);var nextM=new Date(d.getFullYear(),d.getMonth()+1,28);var dsNext=nextM.getFullYear()+'-'+String(nextM.getMonth()+1).padStart(2,'0')+'-28';
+  var example=ds+',requester@fgcuae.com,Description of payment request,Supplier Name,Supplier Name,Bank Transfer,10000,'+dsNext+',Remarks';
   var csv=header+'\n'+example+'\n';
   var blob=new Blob([csv],{type:'text/csv'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='internal_request_template.csv';a.click();
@@ -3181,6 +3182,7 @@ function loadAllData(){
   if(ls)ls.textContent='Loading data from SharePoint\u2026';
   Promise.all([loadRequests(),loadPOData()]).then(function(){
     if(ls)ls.textContent='';
+    var ml=document.getElementById('dash-month-label');if(ml){var nd=today();ml.textContent='— '+['January','February','March','April','May','June','July','August','September','October','November','December'][nd.getMonth()]+' '+nd.getFullYear();}
     initSD();renderDash();renderListChips();renderList();renderSBChips();renderSB();renderSteps(0,false);
   }).catch(function(e){
     console.error('[SP] Load error:',e);
