@@ -854,7 +854,14 @@ function getVatOK(r){
 }
 function getTot(r){
   if(r.type==='internal')return parseFloat(r.apprAmt||r.reqAmt)||0;
+  /* Use SP stored total (RequiredAmount) if available, else calculate */
+  if(r.totAmtSP)return r.totAmtSP;
   return(r.excl||0)*(getVatOK(r)?1.05:1);
+}
+function getVatAmt(r){
+  /* Use SP stored VAT (VATAmount) if available, else calculate */
+  if(r.vatAmtSP)return r.vatAmtSP;
+  return getVatOK(r)?(r.excl||0)*0.05:0;
 }
 function getExcl(r){return r.excl||0;}
 function getPaidAmt(r){
@@ -1025,7 +1032,7 @@ function renderList(){
   document.getElementById('list-thead').innerHTML=listCols.map(function(c){var arr=sortCol===c.key?(sortDir===1?' ▲':' ▼'):' ⇅';return'<th style="min-width:'+c.w+'px" onclick="sortList(\''+c.key+'\')">'+(c.lbl)+arr+'</th>';}).join('');
   var totalAmt=0;
   document.getElementById('list-body').innerHTML=recs.map(function(r){
-    var due=calcDueDate(r);var od=isOverdue(r);var t=getTot(r);var excl=r.excl||0;var vat=getVatOK(r)?excl*0.05:0;totalAmt+=t;
+    var due=calcDueDate(r);var od=isOverdue(r);var t=getTot(r);var excl=r.excl||0;var vat=getVatAmt(r);totalAmt+=t;
     var isPmtRow=(r.status==='paid'||r.status==='partially-paid');
     var pmtBtn=isPmtRow?'<button onclick="event.stopPropagation();openPmtDetail(\''+r.ref+'\',event)" style="margin-left:4px;border:0.5px solid var(--blue-border);background:var(--blue-bg);color:var(--blue-text);border-radius:5px;padding:2px 7px;font-size:9px;cursor:pointer;font-family:inherit;white-space:nowrap">&#128196; View</button>':'';
     return'<tr class="'+(od?'overdue':'')+'" onclick="loadRec(\''+r.ref+'\');goPg(\'pg-review\',document.querySelectorAll(\'.tnb\')[2])">'
@@ -1048,7 +1055,7 @@ function renderList(){
 ;
   document.getElementById('list-tfoot').innerHTML='<td colspan="7" style="padding:7px 10px;font-size:10px;color:var(--txt2)">'+recs.length+' record(s)</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">'+fN(recs.reduce(function(s,r){return s+(r.excl||0);},0))+'</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">'+fN(recs.reduce(function(s,r){return s+(getVatOK(r)?(r.excl||0)*0.05:0);},0))+'</td><td class="amt-col" style="padding:7px 10px;font-size:10px;font-weight:700">AED '+fN(totalAmt)+'</td><td colspan="4"></td>';
 }
-function getSV(r,col){if(col==='amt')return getTot(r);if(col==='excl')return r.excl||0;if(col==='vatAmt')return getVatOK(r)?(r.excl||0)*0.05:0;if(col==='due'){var d=calcDueDate(r);return d?d.getTime():0;}if(col==='relDate'){var rd=r.relDate?new Date(r.relDate):null;return rd?rd.getTime():0;}return(r[col]||'').toString().toLowerCase();}
+function getSV(r,col){if(col==='amt')return getTot(r);if(col==='excl')return r.excl||0;if(col==='vatAmt')return getVatAmt(r);if(col==='due'){var d=calcDueDate(r);return d?d.getTime():0;}if(col==='relDate'){var rd=r.relDate?new Date(r.relDate):null;return rd?rd.getTime():0;}return(r[col]||'').toString().toLowerCase();}
 function sortList(col){sortDir=(sortCol===col)?-sortDir:1;sortCol=col;renderList();}
 
 /* ═══════════ SIDEBAR ═══════════ */
@@ -3210,17 +3217,15 @@ function loadAllData(){
 }
 
 function loadRequests(){
-  var url=_SP+'/_api/web/lists/getbytitle(\''+_LIST+'\')/items?$top=4999&$orderby=Id+asc';
+  var sel='Id,Title,ReferenceNo,Status,RequestedParty,RequestedDate,RequesterEmail,Description,Payment_x0020_Type,PONumber,SupplierName,PaidTo,PaymentMethod,InvoiceNo,VATApplicable_x003f_,AmountWithoutVAT,VATAmount,RequiredAmount,PlannedReleaseDate,Due_x0020_Date,Reason,Comments';
+  var url=_SP+'/_api/web/lists/getbytitle(\''+_LIST+'\')/items?$top=4999&$orderby=Id+asc&$select='+sel;
   return spGet(url).then(function(data){
     var items=data.value||[];
     if(items.length>0){
-      /* Log all non-system fields for diagnosis */
-      var sysFields=['@odata.etag','FileSystemObjectType','ServerRedirectedEmbedUrl','ContentTypeId','ComplianceAssetId','GUID','UIVersion','UIVersionString','Attachments','AuthorId','EditorId','OData__UIVersionString','CheckoutUserId'];
-      var fields=Object.keys(items[0]).filter(function(k){return sysFields.indexOf(k)<0&&!k.endsWith('StringId')&&!k.endsWith('Id')&&k!=='ID';});
-      console.log('[SP] List fields ('+items.length+' items):',JSON.stringify(fields));
-      /* Show first item values so we can identify field names */
-      var sample={};fields.forEach(function(k){if(items[0][k]!==null&&items[0][k]!==undefined)sample[k]=items[0][k];});
-      console.log('[SP] First item values:',JSON.stringify(sample));
+      /* Log all fields for diagnosis */
+      console.log('[SP] List fields returned:',JSON.stringify(Object.keys(items[0])));
+      console.log('[SP] First item:',JSON.stringify(items[0]));
+      console.log('[SP] AmountWithoutVAT sample:',items[0]['AmountWithoutVAT']);
     }
     /* Map SP status string to app status key */
     function spStat(s){
@@ -3250,6 +3255,8 @@ function loadRequests(){
         inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice'])||'',
         vat:fldG(item,['VATApplicable_x003f_','VATApplicable','VAT','Vat'])||'yes',
         excl:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
+        vatAmtSP:parseFloat(fldG(item,['VATAmount'])||0)||0,
+        totAmtSP:parseFloat(fldG(item,['RequiredAmount'])||0)||0,
         relDate:spDate(fldG(item,['PlannedReleaseDate','ReleaseDate','RelDate'])||''),
         reqDate:spDate(fldG(item,['Due_x0020_Date','DueDate','RequiredDate','ReqDate'])||''),
         reqAmt:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
@@ -3318,6 +3325,8 @@ function spSaveRecord(r){
     PaymentMethod:r.meth||'',
     InvoiceNo:r.inv||'',
     AmountWithoutVAT:r.excl||0,
+    VATAmount:getVatAmt(r),
+    RequiredAmount:getTot(r),
     PlannedReleaseDate:r.relDate||null,
     Due_x0020_Date:r.reqDate||null,
     Reason:r.rejRsn?r.rejRsn.join(';'):'',
