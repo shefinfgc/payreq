@@ -1,0 +1,1829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Payment Requirements</title>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+:root{
+  --bg:#F5F4F0;--card:#FFFFFF;--border:#E0DED8;--text:#1A1A18;--sub:#6B6962;
+  --accent:#4A3BAA;--accent2:#6C5CE7;--green:#1A7A4A;--red:#C0392B;--amber:#B7860B;
+  --blue:#1A5276;--teal:#0E7490;--pink:#9B2C6A;
+  --sp1:#EAF7F0;--sp2:#FEF9EC;--sp3:#EEF0FB;--sp4:#FCEBEB;--sp5:#FFF4E5;
+  --r:10px;--r2:6px;--sh:0 2px 8px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+a{text-decoration:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:13px}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:0;right:0;height:48px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;z-index:100;box-shadow:var(--sh)}
+.topbar-logo{font-weight:700;font-size:15px;color:var(--accent);letter-spacing:-.3px}
+.topbar-sep{width:1px;height:22px;background:var(--border)}
+.topbar-title{font-size:12px;color:var(--sub)}
+.topbar-nav{display:flex;gap:4px;margin-left:auto}
+.topbar-nav button{border:none;background:none;padding:6px 10px;border-radius:var(--r2);cursor:pointer;font-size:11px;color:var(--sub);font-family:inherit;transition:all .15s}
+.topbar-nav button:hover,.topbar-nav button.active{background:var(--sp3);color:var(--accent);font-weight:600}
+.topbar-user{font-size:11px;color:var(--sub);margin-left:8px}
+
+/* LAYOUT */
+.page{display:none;padding:68px 24px 24px;max-width:1200px;margin:0 auto}
+.page.active{display:block}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--sh)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-hd h2{font-size:14px;font-weight:700;color:var(--text)}
+.card-hd p{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* DASHBOARD STATS */
+.dash-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--sh);cursor:pointer;transition:all .15s}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.stat-card .lbl{font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-card .val{font-size:26px;font-weight:700;color:var(--text)}
+.stat-card .sub{font-size:10px;color:var(--sub);margin-top:2px}
+.stat-card.c-green .val{color:var(--green)}
+.stat-card.c-amber .val{color:var(--amber)}
+.stat-card.c-red .val{color:var(--red)}
+.stat-card.c-blue .val{color:var(--blue)}
+.stat-card.c-accent .val{color:var(--accent)}
+.stat-card.c-teal .val{color:var(--teal)}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:#F8F7F4;border-bottom:2px solid var(--border);padding:9px 10px;text-align:left;font-weight:600;color:var(--sub);white-space:nowrap;position:sticky;top:0}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:hover td{background:#FAFAF8}
+.tbl tr:last-child td{border-bottom:none}
+
+/* BADGES / STATUS */
+.sp{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.sp-review{background:#EEF0FB;color:#3730A3}
+.sp-accepted{background:#EAF7F0;color:#1A7A4A}
+.sp-approved{background:#E0F2FE;color:#0369A1}
+.sp-rejected{background:#FCEBEB;color:#991B1B}
+.sp-na{background:#F3F4F6;color:#6B7280}
+.sp-paid{background:#D1FAE5;color:#065F46}
+.sp-partially-paid{background:#FEF3C7;color:#92400E}
+.sp-pending{background:#FFF4E5;color:#92400E}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r2);border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent2)}
+.btn-success{background:var(--green);color:#fff}
+.btn-success:hover:not(:disabled){background:#15693D}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover:not(:disabled){background:#A93226}
+.btn-warn{background:#D4A017;color:#fff}
+.btn-warn:hover:not(:disabled){background:#B8860B}
+.btn-ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn-ghost:hover:not(:disabled){background:var(--sp3)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px}
+
+/* FORM */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.form-grid.cols2{grid-template-columns:1fr 1fr}
+.form-grid.cols3{grid-template-columns:1fr 1fr 1fr}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;font-weight:600;color:var(--sub)}
+.fg input,.fg select,.fg textarea{border:1px solid var(--border);border-radius:var(--r2);padding:7px 10px;background:#fff;color:var(--text);outline:none;transition:border .15s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent)}
+.fg input[readonly]{background:#F8F7F4;color:var(--sub)}
+.fg textarea{resize:vertical;min-height:70px}
+
+/* SEARCHABLE DROPDOWN */
+.sd-wrap{position:relative}
+.sd-input{display:flex;align-items:center;border:1px solid var(--border);border-radius:var(--r2);background:#fff;padding:0 8px;gap:6px;cursor:pointer;transition:border .15s;min-height:33px}
+.sd-input:focus-within{border-color:var(--accent)}
+.sd-input input{border:none;outline:none;background:none;flex:1;padding:6px 0;min-width:0}
+.sd-input .sd-arrow{color:var(--sub);font-size:10px;flex-shrink:0}
+.sd-drop{display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--r2);box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:500;max-height:220px;overflow-y:auto}
+.sd-drop.open{display:block}
+.sd-opt{padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #F5F4F0}
+.sd-opt:last-child{border-bottom:none}
+.sd-opt:hover,.sd-opt.active{background:var(--sp3);color:var(--accent)}
+.sd-opt.sd-empty{color:var(--sub);font-style:italic;cursor:default}
+
+/* STEPS */
+.steps{display:flex;align-items:center;gap:0;margin-bottom:20px;overflow-x:auto}
+.step{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.step-dot.done{background:var(--green);color:#fff}
+.step-dot.active{background:var(--accent);color:#fff;box-shadow:0 0 0 3px rgba(74,59,170,.2)}
+.step-dot.pending{background:#E0DED8;color:var(--sub)}
+.step-lbl{font-size:10px;font-weight:600;white-space:nowrap}
+.step-lbl.done{color:var(--green)}
+.step-lbl.active{color:var(--accent)}
+.step-lbl.pending{color:var(--sub)}
+.step-line{width:30px;height:2px;background:var(--border);flex-shrink:0}
+.step-line.done{background:var(--green)}
+
+/* SECTION */
+.sec{margin-bottom:20px}
+.sec-title{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* DETAIL ROWS */
+.det-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.det-item .lbl{font-size:10px;color:var(--sub);margin-bottom:2px}
+.det-item .val{font-size:13px;font-weight:600;color:var(--text)}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--border)}
+.tab-btn{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--sub);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;transition:all .15s}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+
+/* PAYMENT CARDS */
+.pmt-card{border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;background:#FAFAF8}
+.pmt-card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pmt-card-hd .pmt-ref{font-weight:700;font-size:12px}
+.pmt-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;font-size:11px}
+.pmt-meta .k{color:var(--sub)}
+.pmt-meta .v{font-weight:600}
+
+/* ALERTS */
+.alert{padding:10px 14px;border-radius:var(--r2);font-size:12px;margin-bottom:12px}
+.alert-info{background:var(--sp3);color:var(--accent);border:1px solid #C7D2FE}
+.alert-warn{background:var(--sp2);color:var(--amber);border:1px solid #FDE68A}
+.alert-success{background:var(--sp1);color:var(--green);border:1px solid #A7F3D0}
+.alert-danger{background:var(--sp4);color:var(--red);border:1px solid #FCA5A5}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:var(--r);padding:24px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.modal p{font-size:12px;color:var(--sub);margin-bottom:16px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{background:#1A1A18;color:#fff;padding:10px 16px;border-radius:var(--r2);font-size:12px;animation:fadeInUp .3s ease;max-width:320px}
+.toast-item.success{background:var(--green)}
+.toast-item.error{background:var(--red)}
+.toast-item.warn{background:#B7860B}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* SEARCH/FILTER BAR */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.filter-bar input,.filter-bar select{border:1px solid var(--border);border-radius:var(--r2);padding:6px 10px;font-size:12px;font-family:inherit;background:#fff;outline:none}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--accent)}
+
+/* PO INFO BOX */
+.po-box{background:var(--sp3);border:1px solid #C7D2FE;border-radius:var(--r2);padding:12px;font-size:11px;margin-top:8px}
+.po-box .po-row{display:flex;gap:16px;flex-wrap:wrap}
+.po-box .po-kv{display:flex;flex-direction:column;gap:2px}
+.po-box .po-kv .k{color:var(--sub);font-size:10px}
+.po-box .po-kv .v{font-weight:700;color:var(--accent)}
+
+/* CHART AREA */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--sh)}
+.chart-box h3{font-size:12px;font-weight:700;margin-bottom:14px;color:var(--sub)}
+.bar-chart{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:flex;align-items:center;gap:8px;font-size:11px}
+.bar-row .bar-lbl{width:80px;text-align:right;color:var(--sub);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-row .bar-track{flex:1;background:#F0EFE9;border-radius:3px;height:14px;overflow:hidden}
+.bar-row .bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.bar-row .bar-val{width:50px;font-weight:700;color:var(--text);flex-shrink:0}
+.donut-wrap{display:flex;align-items:center;gap:16px}
+.donut-legend{display:flex;flex-direction:column;gap:6px;font-size:11px}
+.donut-legend .dl-row{display:flex;align-items:center;gap:6px}
+.donut-legend .dl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* BULK */
+.bulk-drop{border:2px dashed var(--border);border-radius:var(--r);padding:32px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:16px}
+.bulk-drop:hover,.bulk-drop.drag{border-color:var(--accent);background:var(--sp3)}
+.bulk-drop p{color:var(--sub);font-size:13px}
+.bulk-drop .icon{font-size:32px;margin-bottom:8px}
+
+/* MISC */
+.flex{display:flex}
+.gap8{gap:8px}
+.gap12{gap:12px}
+.gap16{gap:16px}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.ml-auto{margin-left:auto}
+.mt8{margin-top:8px}
+.mt12{margin-top:12px}
+.mt16{margin-top:16px}
+.mb8{margin-bottom:8px}
+.mb12{margin-bottom:12px}
+.mb16{margin-bottom:16px}
+.w100{width:100%}
+.text-right{text-align:right}
+.text-center{text-align:center}
+.bold{font-weight:700}
+.small{font-size:11px}
+.muted{color:var(--sub)}
+hr.div{border:none;border-top:1px solid var(--border);margin:16px 0}
+
+@media(max-width:700px){
+  .chart-row{grid-template-columns:1fr}
+  .form-grid.cols3{grid-template-columns:1fr}
+  .form-grid.cols2{grid-template-columns:1fr}
+  .topbar-nav button span{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="position:fixed;inset:0;background:#F5F4F0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="background:#fff;border:1px solid #E0DED8;border-radius:12px;padding:40px 48px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:360px;width:90%">
+    <div style="font-size:28px;margin-bottom:8px">&#9632;</div>
+    <div style="font-weight:700;font-size:18px;color:#4A3BAA;margin-bottom:4px">PayReq</div>
+    <div style="font-size:13px;color:#6B6962;margin-bottom:28px">Payment Requirements</div>
+    <button onclick="doLogin()" style="width:100%;padding:11px 20px;background:#4A3BAA;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:10px">
+      <svg width="18" height="18" viewBox="0 0 21 21" fill="none"><rect width="10" height="10" fill="#F25022"/><rect x="11" width="10" height="10" fill="#7FBA00"/><rect y="11" width="10" height="10" fill="#00A4EF"/><rect x="11" y="11" width="10" height="10" fill="#FFB900"/></svg>
+      Sign in with Microsoft
+    </button>
+    <div id="login-err" style="margin-top:12px;font-size:12px;color:#C0392B;display:none"></div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="topbar-logo">&#9632; PayReq</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-title">Payment Requirements</div>
+  <nav class="topbar-nav">
+    <button onclick="nav('dash')" id="nav-dash" class="active"><span>&#9632;</span> Dashboard</button>
+    <button onclick="nav('list')" id="nav-list"><span>&#9776;</span> Requests</button>
+    <button onclick="nav('payment')" id="nav-payment"><span>&#36;</span> Payment</button>
+    <button onclick="nav('cheques')" id="nav-cheques"><span>&#9633;</span> Cheques</button>
+    <button onclick="nav('bulk')" id="nav-bulk"><span>&#8679;</span> Bulk Upload</button>
+    <button onclick="nav('bulkapprove')" id="nav-bulkapprove"><span>&#10003;</span> Bulk Approve</button>
+  </nav>
+  <div class="topbar-user" id="top-user"></div>
+  <button id="btn-logout" onclick="doLogout()" style="display:none;border:1px solid #E0DED8;background:#fff;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;color:#6B6962;font-family:inherit;margin-left:6px">Sign out</button>
+</div>
+
+<!-- LOADER -->
+<div id="sp-loader" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:14px">
+  <div style="width:44px;height:44px;border:4px solid #E0DED8;border-top-color:#4A3BAA;border-radius:50%;animation:sp-spin 1s linear infinite"></div>
+  <div id="sp-loader-msg" style="font-size:12px;color:#6B6962;font-family:'Segoe UI',system-ui,sans-serif">Connecting to SharePoint...</div>
+</div>
+<div id="sp-err-banner" style="display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:9999;background:#FCEBEB;border:0.5px solid #F09595;color:#791F1F;padding:12px 24px;border-radius:10px;font-size:11px;font-family:'Segoe UI',system-ui,sans-serif;max-width:500px;text-align:center"></div>
+<style>@keyframes sp-spin{to{transform:rotate(360deg)}}</style>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL: Reject -->
+<div class="modal-bg" id="modal-reject">
+  <div class="modal">
+    <h3>Reject Request</h3>
+    <p>Provide a reason for rejection. This will be visible to the requester.</p>
+    <div class="fg mb12"><label>Reason for Rejection</label><textarea id="rej-reason" rows="3" placeholder="Enter reason..."></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reject')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmReject()">Confirm Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NA -->
+<div class="modal-bg" id="modal-na">
+  <div class="modal">
+    <h3>Mark as N/A</h3>
+    <p>Are you sure you want to mark this request as Not Applicable? This cannot be undone easily.</p>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('modal-na')">Cancel</button>
+      <button class="btn btn-warn" onclick="confirmNA()">Confirm N/A</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Int Reject -->
+<div class="modal-bg" id="modal-int-reject">
+  <div class="modal">
+    <h3>Internal Reject</h3>
+    <p>Provide a reason for internal rejection.</p>
+    <div class="fg mb12"><label>Reason</label><textarea id="int-rej-reason" rows="3" placeholder="Enter reason..."></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeModal('modal-int-reject')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmIntReject()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: DASHBOARD -->
+<div class="page active" id="pg-dash">
+  <div class="dash-stats" id="dash-stats"></div>
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>Requests by Status</h3>
+      <div id="chart-status"></div>
+    </div>
+    <div class="chart-box">
+      <h3>Top Payees by Amount</h3>
+      <div id="chart-payee"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><div><h2>Recent Requests</h2><p>Latest 10 payment requests</p></div></div>
+    <div class="tbl-wrap"><table class="tbl" id="dash-recent"></table></div>
+  </div>
+</div>
+
+<!-- PAGE: ALL REQUESTS -->
+<div class="page" id="pg-list">
+  <div class="card">
+    <div class="card-hd">
+      <div><h2>All Requests</h2><p id="list-count">Loading...</p></div>
+      <button class="btn btn-primary btn-sm" onclick="newRequest()">+ New Request</button>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="list-search" placeholder="Search ref, payee, desc..." oninput="renderList()" style="min-width:200px">
+      <select id="list-status" onchange="renderList()">
+        <option value="">All Statuses</option>
+        <option value="review">Under Review</option>
+        <option value="accepted">Accepted</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="na">N/A</option>
+        <option value="paid">Paid</option>
+        <option value="partially-paid">Partially Paid</option>
+      </select>
+      <select id="list-meth" onchange="renderList()">
+        <option value="">All Methods</option>
+        <option>Bank Transfer</option>
+        <option>Cheque</option>
+        <option>Cash</option>
+        <option>Credit Card</option>
+      </select>
+      <select id="list-type" onchange="renderList()">
+        <option value="">All Types</option>
+        <option>Advance</option>
+        <option>Progress</option>
+        <option>Final</option>
+        <option>Retention</option>
+        <option>Other</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="list-tbl"></table></div>
+  </div>
+</div>
+
+<!-- PAGE: REVIEW -->
+<div class="page" id="pg-review">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+    <button class="btn btn-ghost btn-sm" onclick="nav('list')">&#8592; Back</button>
+    <span id="rev-breadcrumb" style="font-size:12px;color:var(--sub)"></span>
+  </div>
+  <div id="review-steps" class="steps mb16"></div>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px" id="review-layout">
+    <div>
+      <!-- FORM CARD -->
+      <div class="card mb16" id="review-form-card">
+        <div class="card-hd"><div><h2>Request Details</h2><p id="rev-mode-lbl">View / Edit</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" id="btn-edit" onclick="toggleEdit()">Edit</button>
+            <button class="btn btn-primary btn-sm" id="btn-save" style="display:none" onclick="doSave()">Save</button>
+            <button class="btn btn-ghost btn-sm" id="btn-cancel" style="display:none" onclick="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">Basic Info</div>
+          <div class="form-grid cols3">
+            <div class="fg"><label>Reference No</label><input id="f-ref" readonly/></div>
+            <div class="fg"><label>Date Received</label><input id="f-date" type="date" readonly/></div>
+            <div class="fg"><label>Requester Email</label><input id="f-requester" readonly/></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">Payment Details</div>
+          <div class="form-grid cols2">
+            <div class="fg"><label>Payee / Vendor</label>
+              <div class="sd-wrap" id="sdw-payee">
+                <div class="sd-input" onclick="togSD('payee')"><input id="sd-payee" placeholder="Select or type..." oninput="filtSD('payee')" autocomplete="off" readonly><span class="sd-arrow">&#9660;</span></div>
+                <div class="sd-drop" id="sdd-payee"></div>
+              </div>
+            </div>
+            <div class="fg"><label>Paid To</label>
+              <div class="sd-wrap" id="sdw-paidto">
+                <div class="sd-input" onclick="togSD('paidto')"><input id="sd-paidto" placeholder="Select or type..." oninput="filtSD('paidto')" autocomplete="off" readonly><span class="sd-arrow">&#9660;</span></div>
+                <div class="sd-drop" id="sdd-paidto"></div>
+              </div>
+            </div>
+            <div class="fg"><label>Description</label><textarea id="f-desc" readonly rows="2"></textarea></div>
+            <div class="fg"><label>Invoice No</label><input id="f-inv" readonly/></div>
+            <div class="fg"><label>Payment Method</label><select id="f-meth" disabled>
+              <option>Bank Transfer</option><option>Cheque</option><option>Cash</option><option>Credit Card</option>
+            </select></div>
+            <div class="fg"><label>Payment Type</label><select id="f-pt" disabled>
+              <option>Advance</option><option>Progress</option><option>Final</option><option>Retention</option><option>Other</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">PO & Project</div>
+          <div class="form-grid cols3">
+            <div class="fg"><label>PO Number</label>
+              <div class="sd-wrap" id="sdw-po">
+                <div class="sd-input" onclick="togSD('po')"><input id="sd-po" placeholder="Select PO..." oninput="filtSD('po')" autocomplete="off" readonly><span class="sd-arrow">&#9660;</span></div>
+                <div class="sd-drop" id="sdd-po"></div>
+              </div>
+            </div>
+            <div class="fg"><label>Project No</label><input id="f-proj" readonly/></div>
+            <div class="fg"><label>Bank Name</label><input id="f-bankName" readonly/></div>
+          </div>
+          <div id="po-info-box" class="po-box mt8" style="display:none"></div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-title">Amounts</div>
+          <div class="form-grid cols3">
+            <div class="fg"><label>VAT Applicable?</label><select id="f-vat" disabled><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div class="fg"><label>Amount (excl. VAT)</label><input id="f-excl" type="number" readonly/></div>
+            <div class="fg"><label>VAT Amount</label><input id="f-vatAmt" type="number" readonly/></div>
+            <div class="fg"><label>Total Amount</label><input id="f-tot" type="number" readonly/></div>
+            <div class="fg"><label>Approved Amount</label><input id="f-approvedAmt" type="number" readonly/></div>
+            <div class="fg"><label>Planned Release Date</label><input id="f-relDate" type="date" readonly/></div>
+          </div>
+        </div>
+
+        <div class="sec" id="sec-rejection" style="display:none">
+          <div class="sec-title">Rejection</div>
+          <div class="fg"><label>Reason for Rejection</label><textarea id="f-rejRsn" readonly rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <!-- DOCUMENTS CARD -->
+      <div class="card mb16">
+        <div class="card-hd"><div><h2>Documents</h2><p>Supporting files</p></div></div>
+        <div id="docs-list"></div>
+      </div>
+
+      <!-- PAYMENTS HISTORY -->
+      <div class="card" id="payments-history-card">
+        <div class="card-hd"><div><h2>Payment History</h2><p>All recorded payments</p></div></div>
+        <div id="payments-history"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div>
+      <div class="card mb16" id="action-card">
+        <div class="card-hd"><div><h2>Actions</h2><p id="action-lbl">Available actions</p></div></div>
+        <div id="action-buttons"></div>
+      </div>
+
+      <div class="card mb16">
+        <div class="card-hd"><div><h2>Release Date</h2></div></div>
+        <div class="fg">
+          <label>Planned Release Date</label>
+          <input type="date" id="rel-date-inp"/>
+          <button class="btn btn-primary btn-sm mt8" onclick="saveRelDate()">Save Date</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><div><h2>Status Log</h2></div></div>
+        <div id="status-log" style="font-size:11px;color:var(--sub)">No log yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: PAYMENT UPDATE -->
+<div class="page" id="pg-payment">
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+    <button class="btn btn-ghost btn-sm" onclick="nav('list')">&#8592; Back</button>
+    <span id="pmt-breadcrumb" style="font-size:12px;color:var(--sub)"></span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <div class="card mb16">
+        <div class="card-hd"><h2>Record Payment</h2></div>
+        <div class="form-grid cols2">
+          <div class="fg"><label>Payment Method</label><select id="pmt-meth">
+            <option>Bank Transfer</option><option>Cheque</option><option>Cash</option><option>Credit Card</option>
+          </select></div>
+          <div class="fg"><label>Bank Name</label><input id="pmt-bank" placeholder="Bank name"/></div>
+          <div class="fg"><label>Transaction / Cheque No</label><input id="pmt-txn" placeholder="TXN or cheque no"/></div>
+          <div class="fg"><label>Payment Date</label><input type="date" id="pmt-date"/></div>
+          <div class="fg"><label>Cheque Date</label><input type="date" id="pmt-cheque-date"/></div>
+          <div class="fg"><label>Amount</label><input type="number" id="pmt-amt" placeholder="0.00"/></div>
+          <div class="fg"><label>Currency</label><select id="pmt-currency">
+            <option>AED</option><option>USD</option><option>EUR</option><option>GBP</option><option>SAR</option>
+          </select></div>
+          <div class="fg"><label>Exchange Rate</label><input type="number" id="pmt-fx" value="1" step="0.0001"/></div>
+        </div>
+        <div class="fg mt8"><label>Remarks</label><textarea id="pmt-remarks" rows="2" placeholder="Optional remarks..."></textarea></div>
+        <button class="btn btn-success mt12 w100" onclick="addPayment()">+ Record Payment</button>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-hd"><h2>Payment Summary</h2></div>
+        <div id="pmt-summary"></div>
+        <hr class="div">
+        <div id="pmt-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: UNPAID CHEQUES -->
+<div class="page" id="pg-cheques">
+  <div class="card">
+    <div class="card-hd"><div><h2>Unpaid / Uncleared Cheques</h2><p>Cheques pending clearance</p></div></div>
+    <div class="filter-bar">
+      <input type="text" id="cheq-search" placeholder="Search..." oninput="renderCheques()">
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="cheq-tbl"></table></div>
+  </div>
+</div>
+
+<!-- PAGE: BULK UPLOAD -->
+<div class="page" id="pg-bulk">
+  <div class="card">
+    <div class="card-hd"><div><h2>Bulk Upload</h2><p>Upload CSV to import multiple payment requests</p></div></div>
+    <div class="bulk-drop" id="bulk-drop" onclick="document.getElementById('bulk-file').click()" ondrop="bulkDrop(event)" ondragover="bulkDragOver(event)" ondragleave="bulkDragLeave(event)">
+      <div class="icon">&#8679;</div>
+      <p>Click or drag &amp; drop a CSV file here</p>
+      <p class="small muted mt8">Expected columns: ref, date, requester, desc, payee, paidto, meth, inv, vat, excl, vatAmt, tot, po, pt, relDate, proj, bankName</p>
+    </div>
+    <input type="file" id="bulk-file" accept=".csv" style="display:none" onchange="bulkFileSelected(event)">
+    <div id="bulk-preview"></div>
+    <div id="bulk-actions" style="display:none" class="mt12">
+      <button class="btn btn-primary" onclick="bulkImport()">Import All Valid Rows</button>
+      <button class="btn btn-ghost ml8" onclick="clearBulk()" style="margin-left:8px">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: BULK APPROVE -->
+<div class="page" id="pg-bulkapprove">
+  <div class="card">
+    <div class="card-hd">
+      <div><h2>Bulk Approve</h2><p>Select multiple accepted requests to approve at once</p></div>
+      <button class="btn btn-success btn-sm" onclick="doBulkApprove()">Approve Selected</button>
+    </div>
+    <div class="tbl-wrap"><table class="tbl" id="bulkapprove-tbl"></table></div>
+  </div>
+</div>
+
+<script>
+// ─── MSAL CONFIG ─────────────────────────────────────────────────────────────
+// STEP 1: Go to portal.azure.com → Azure Active Directory → App registrations
+// STEP 2: Register new app, set Redirect URI = this file's GitHub Pages URL
+// STEP 3: API Permissions → Add → SharePoint → Sites.ReadWrite.All → Grant consent
+// STEP 4: Copy Application (client) ID and Directory (tenant) ID below
+var MSAL_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';   // Replace with your App Registration Client ID
+var MSAL_TENANT_ID = 'YOUR_TENANT_ID_HERE';   // Replace with your Azure AD Tenant ID
+
+var msalInstance = new msal.PublicClientApplication({
+  auth:{
+    clientId: MSAL_CLIENT_ID,
+    authority: 'https://login.microsoftonline.com/' + MSAL_TENANT_ID,
+    redirectUri: window.location.origin + window.location.pathname
+  },
+  cache:{ cacheLocation:'sessionStorage', storeAuthStateInCookie:false }
+});
+
+var TOKEN_REQUEST = { scopes:['https://fgcuae.sharepoint.com/.default'] };
+var _accessToken = null;
+
+async function getToken(){
+  var acct = msalInstance.getAllAccounts()[0];
+  if(!acct) throw new Error('Not signed in');
+  try{
+    var r = await msalInstance.acquireTokenSilent({...TOKEN_REQUEST, account:acct});
+    _accessToken = r.accessToken;
+    return _accessToken;
+  }catch(e){
+    var r = await msalInstance.acquireTokenPopup({...TOKEN_REQUEST, account:acct});
+    _accessToken = r.accessToken;
+    return _accessToken;
+  }
+}
+
+async function doLogin(){
+  document.getElementById('login-err').style.display='none';
+  try{
+    var r = await msalInstance.loginPopup(TOKEN_REQUEST);
+    _accessToken = r.accessToken;
+    document.getElementById('login-screen').style.display='none';
+    loadAllData();
+  }catch(e){
+    var errEl=document.getElementById('login-err');
+    errEl.textContent='Login failed: '+e.message;
+    errEl.style.display='block';
+  }
+}
+
+function doLogout(){
+  msalInstance.logoutPopup();
+}
+
+// ─── SP CONFIG ───────────────────────────────────────────────────────────────
+var SITE='https://fgcuae.sharepoint.com/sites/HRLounge';
+var REQUESTS_LIST_ID='3877b1a8-c5a2-46ff-9265-2ea6674a18cf';
+var PO_LIB_ID='7B4A97345B-D5B4-483D-81C0-CF4F067E9A76';
+var PAYMENTS_LIST='Payments';
+var REQUESTS_ITEM_TYPE='SP.ListItem';
+var APPROVER='shefin@fgcuae.com', CU='';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var records={}, poData={};
+var currentId=null, editMode=false;
+var sdData={po:[],payee:[],paidto:[]};
+var bulkRows=[];
+var _digestVal=null, _digestExp=0;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+var docDefs=[
+  {key:'invoice',label:'Invoice'},
+  {key:'po',label:'Purchase Order'},
+  {key:'delivery',label:'Delivery Note'},
+  {key:'contract',label:'Contract'},
+  {key:'other',label:'Other'}
+];
+
+var spCls={
+  review:'sp-review',accepted:'sp-accepted',approved:'sp-approved',
+  rejected:'sp-rejected',na:'sp-na',paid:'sp-paid','partially-paid':'sp-partially-paid',pending:'sp-pending'
+};
+var spLbl={
+  review:'Under Review',accepted:'Accepted',approved:'Approved',
+  rejected:'Rejected',na:'N/A',paid:'Paid','partially-paid':'Partially Paid',pending:'Pending'
+};
+var stepLabels=['Submitted','Under Review','Accepted','Approved','Paid'];
+
+// ─── SP HELPERS ───────────────────────────────────────────────────────────────
+async function getDigest(){
+  var now=Date.now();
+  if(_digestVal && now<_digestExp) return _digestVal;
+  var tok=await getToken();
+  var r=await fetch(SITE+'/_api/contextinfo',{
+    method:'POST',
+    headers:{'Accept':'application/json;odata=verbose','Content-Length':'0','Authorization':'Bearer '+tok}
+  });
+  var j=await r.json();
+  _digestVal=j.d.GetContextWebInformation.FormDigestValue;
+  _digestExp=now+28*60*1000;
+  return _digestVal;
+}
+
+async function spGet(url){
+  var tok=await getToken();
+  var r=await fetch(url,{
+    headers:{'Accept':'application/json;odata=verbose','Authorization':'Bearer '+tok}
+  });
+  if(!r.ok) throw new Error('GET '+url+' -> '+r.status);
+  return r.json();
+}
+
+async function spPost(url,body){
+  var tok=await getToken();
+  var d=await getDigest();
+  var r=await fetch(url,{
+    method:'POST',
+    headers:{
+      'Accept':'application/json;odata=verbose',
+      'Content-Type':'application/json;odata=verbose',
+      'X-RequestDigest':d,
+      'Authorization':'Bearer '+tok
+    },
+    body:JSON.stringify(body)
+  });
+  if(!r.ok){var t=await r.text();throw new Error('POST '+url+' -> '+r.status+' '+t);}
+  var ct=r.headers.get('content-type')||'';
+  if(ct.includes('json')&&r.status!==204) return r.json();
+  return null;
+}
+
+async function spPatch(url,body){
+  var tok=await getToken();
+  var d=await getDigest();
+  var r=await fetch(url,{
+    method:'POST',
+    headers:{
+      'Accept':'application/json;odata=verbose',
+      'Content-Type':'application/json;odata=verbose',
+      'X-RequestDigest':d,
+      'X-HTTP-Method':'MERGE',
+      'IF-MATCH':'*',
+      'Authorization':'Bearer '+tok
+    },
+    body:JSON.stringify(body)
+  });
+  if(!r.ok&&r.status!==204){var t=await r.text();throw new Error('PATCH '+url+' -> '+r.status+' '+t);}
+  return true;
+}
+
+// ─── LOADER / ERROR ───────────────────────────────────────────────────────────
+function showLoader(msg){
+  var el=document.getElementById('sp-loader');
+  el.style.display='flex';
+  document.getElementById('sp-loader-msg').textContent=msg||'Loading...';
+}
+function hideLoader(){
+  document.getElementById('sp-loader').style.display='none';
+}
+function showSPError(msg){
+  var el=document.getElementById('sp-err-banner');
+  el.textContent=msg;
+  el.style.display='block';
+  setTimeout(function(){el.style.display='none';},7000);
+}
+
+// ─── DATA LOADING ─────────────────────────────────────────────────────────────
+async function loadAllData(){
+  document.getElementById('btn-logout').style.display='';
+  showLoader('Connecting to SharePoint...');
+  try{
+    // Get current user from MSAL account
+    var acct=msalInstance.getAllAccounts()[0];
+    if(acct){
+      CU=acct.username||'';
+      var tu=document.getElementById('top-user');
+      if(tu) tu.textContent=acct.name||CU;
+    }
+    // Also verify SP access
+    try{
+      var cu=await spGet(SITE+'/_api/web/currentuser?$select=Email,Title');
+      CU=cu.d.Email||CU;
+    }catch(e){console.warn('Could not get SP current user',e);}
+
+    showLoader('Loading requests...');
+    await Promise.all([loadRequests(),loadPOData()]);
+    hideLoader();
+    initUI();
+  }catch(e){
+    hideLoader();
+    showSPError('Failed to load data: '+e.message+'. Using offline mode.');
+    console.error(e);
+    initUI();
+  }
+}
+
+async function loadRequests(){
+  var url=SITE+'/_api/lists(\''+REQUESTS_LIST_ID+'\')/items?$top=5000&$select=*,ID';
+  var all=[];
+  while(url){
+    var j=await spGet(url);
+    (j.d.results||[]).forEach(function(item){
+      var r=mapItemToRecord(item);
+      records[r.id]=r;
+    });
+    url=j.d.__next||null;
+  }
+}
+
+function mapItemToRecord(item){
+  var id=item.Reference_x0020_No||('REQ-'+item.ID);
+  return {
+    id:id,
+    _spId:item.ID,
+    _spType:item.__metadata&&item.__metadata.type?item.__metadata.type:REQUESTS_ITEM_TYPE,
+    ref:item.Reference_x0020_No||'',
+    date:spDateToInput(item.Received_x0020_Date)||'',
+    requester:item.Requester_x0020_Email||'',
+    desc:item.Description||'',
+    payee:item.Vendor_x0020_Name||'',
+    paidto:item.Paid_x0020_To||'',
+    meth:item.Payment_x0020_Method||'Bank Transfer',
+    inv:item.Invoice_x0020_No||'',
+    vat:item.VAT_x0020_Applicable_x003f_||'No',
+    excl:item.Amount_x0020_Without_x0020_VAT||0,
+    vatAmt:item.VAT_x0020_Amount||0,
+    tot:item.Amount||0,
+    po:item.PO_x0020_Number||'',
+    pt:item.Payment_x0020_Type||'',
+    relDate:spDateToInput(item.Planned_x0020_Release_x0020_Date)||'',
+    status:normalizeStatus(item.R_x002d_Status||'review'),
+    approvedAmt:item.Approved_x0020_Amount||0,
+    rejRsn:item.Reason_x0020_for_x0020_rejection||'',
+    proj:item.Project_x0020_No||'',
+    bankName:item.Bank_x0020_Name||'',
+    payments:[],
+    docs:{},
+    log:[]
+  };
+}
+
+async function loadPOData(){
+  var url=SITE+'/_api/lists(\''+PO_LIB_ID+'\')/items?$top=5000&$select=*';
+  var j=await spGet(url);
+  (j.d.results||[]).forEach(function(item){
+    var pn=item.PO_x0020_Number||'';
+    if(pn) poData[pn]={
+      po:pn,
+      value:item.Purchase_x0020_Order_x0020_Value||0,
+      terms:item.Payment_x0020_Terms_x0020__x0028_in_x0020_Days_x0029_||'',
+      proj:item.Project_x0020_No||'',
+      supplier:item.Supplier_x0020_Name||'',
+      advance:item.Advance_x0020_Applicable||'No',
+      advPct:item.Advance_x0020_Percentage||0,
+      vat:item.VAT_x0020_Applicable||'No'
+    };
+  });
+}
+
+async function loadPaymentsForRecord(ref){
+  try{
+    var url=SITE+'/_api/web/lists/getbytitle(\''+PAYMENTS_LIST+'\')/items?$filter=RequestReference eq \''+encodeURIComponent(ref)+'\'&$top=500&$select=*';
+    var j=await spGet(url);
+    var pmts=[];
+    (j.d.results||[]).forEach(function(item){
+      pmts.push({
+        _spId:item.ID,
+        method:item.PaymentMethod||'',
+        bank:item.BankName||'',
+        txn:item.TransactionNo||'',
+        date:spDateToInput(item.PaymentDate)||'',
+        chequeDate:spDateToInput(item.ChequeDate)||'',
+        clearanceDate:spDateToInput(item.ClearanceDate)||'',
+        amount:item.Amount||0,
+        currency:item.Currency||'AED',
+        fx:item.ExchangeRate||1,
+        remarks:item.Remarks||'',
+        recordedBy:item.RecordedBy||'',
+        stage:item.Stage||'',
+        cleared:!!(item.ClearanceDate)
+      });
+    });
+    if(records[ref]) records[ref].payments=pmts;
+  }catch(e){
+    console.warn('Could not load payments for '+ref,e);
+  }
+}
+
+// ─── SP WRITE ─────────────────────────────────────────────────────────────────
+var statusToSP={
+  review:'Under Review',accepted:'Accepted',approved:'Approved',
+  rejected:'Rejected',na:'N/A',paid:'Paid','partially-paid':'Partially Paid'
+};
+
+async function saveRecordToSP(r){
+  if(!r||!r._spId) return;
+  var body={
+    '__metadata':{'type':r._spType||REQUESTS_ITEM_TYPE},
+    'Reference_x0020_No':r.ref||'',
+    'Received_x0020_Date':r.date?new Date(r.date).toISOString():null,
+    'Requester_x0020_Email':r.requester||'',
+    'Description':r.desc||'',
+    'Vendor_x0020_Name':r.payee||'',
+    'Paid_x0020_To':r.paidto||'',
+    'Payment_x0020_Method':r.meth||'',
+    'Invoice_x0020_No':r.inv||'',
+    'VAT_x0020_Applicable_x003f_':r.vat||'No',
+    'Amount_x0020_Without_x0020_VAT':parseFloat(r.excl)||0,
+    'VAT_x0020_Amount':parseFloat(r.vatAmt)||0,
+    'Amount':parseFloat(r.tot)||0,
+    'PO_x0020_Number':r.po||'',
+    'Payment_x0020_Type':r.pt||'',
+    'Planned_x0020_Release_x0020_Date':r.relDate?new Date(r.relDate).toISOString():null,
+    'R_x002d_Status':statusToSP[r.status]||r.status||'Under Review',
+    'Approved_x0020_Amount':parseFloat(r.approvedAmt)||0,
+    'Reason_x0020_for_x0020_rejection':r.rejRsn||'',
+    'Project_x0020_No':r.proj||'',
+    'Bank_x0020_Name':r.bankName||''
+  };
+  var url=SITE+'/_api/lists(\''+REQUESTS_LIST_ID+'\')/items('+r._spId+')';
+  spPatch(url,body).then(function(){
+    showToast('Saved to SharePoint','success');
+  }).catch(function(e){
+    showToast('SP save failed: '+e.message,'error');
+  });
+}
+
+async function savePaymentToSP(ref,pmt){
+  var body={
+    '__metadata':{'type':'SP.ListItem'},
+    'RequestReference':ref,
+    'PaymentMethod':pmt.method||'',
+    'BankName':pmt.bank||'',
+    'TransactionNo':pmt.txn||'',
+    'PaymentDate':pmt.date?new Date(pmt.date).toISOString():null,
+    'ChequeDate':pmt.chequeDate?new Date(pmt.chequeDate).toISOString():null,
+    'ClearanceDate':pmt.clearanceDate?new Date(pmt.clearanceDate).toISOString():null,
+    'Amount':parseFloat(pmt.amount)||0,
+    'Currency':pmt.currency||'AED',
+    'ExchangeRate':parseFloat(pmt.fx)||1,
+    'Remarks':pmt.remarks||'',
+    'RecordedBy':CU||'',
+    'Stage':pmt.stage||''
+  };
+  var url=SITE+'/_api/web/lists/getbytitle(\''+PAYMENTS_LIST+'\')/items';
+  try{
+    var res=await spPost(url,body);
+    return res&&res.d?res.d.ID:null;
+  }catch(e){
+    showToast('Payment SP save failed: '+e.message,'error');
+    return null;
+  }
+}
+
+async function updatePaymentInSP(spId,updates){
+  if(!spId) return;
+  var body=Object.assign({'__metadata':{'type':'SP.ListItem'}},updates);
+  var url=SITE+'/_api/web/lists/getbytitle(\''+PAYMENTS_LIST+'\')/items('+spId+')';
+  spPatch(url,body).then(function(){
+    showToast('Payment updated','success');
+  }).catch(function(e){
+    showToast('SP update failed: '+e.message,'error');
+  });
+}
+
+async function createItemInSP(r){
+  var body={
+    '__metadata':{'type':REQUESTS_ITEM_TYPE},
+    'Reference_x0020_No':r.ref||'',
+    'Received_x0020_Date':r.date?new Date(r.date).toISOString():null,
+    'Requester_x0020_Email':r.requester||'',
+    'Description':r.desc||'',
+    'Vendor_x0020_Name':r.payee||'',
+    'Paid_x0020_To':r.paidto||'',
+    'Payment_x0020_Method':r.meth||'',
+    'Invoice_x0020_No':r.inv||'',
+    'VAT_x0020_Applicable_x003f_':r.vat||'No',
+    'Amount_x0020_Without_x0020_VAT':parseFloat(r.excl)||0,
+    'VAT_x0020_Amount':parseFloat(r.vatAmt)||0,
+    'Amount':parseFloat(r.tot)||0,
+    'PO_x0020_Number':r.po||'',
+    'Payment_x0020_Type':r.pt||'',
+    'Planned_x0020_Release_x0020_Date':r.relDate?new Date(r.relDate).toISOString():null,
+    'R_x002d_Status':'Under Review',
+    'Approved_x0020_Amount':0,
+    'Reason_x0020_for_x0020_rejection':'',
+    'Project_x0020_No':r.proj||'',
+    'Bank_x0020_Name':r.bankName||''
+  };
+  var url=SITE+'/_api/lists(\''+REQUESTS_LIST_ID+'\')/items';
+  var res=await spPost(url,body);
+  if(res&&res.d){
+    r._spId=res.d.ID;
+    r._spType=res.d.__metadata&&res.d.__metadata.type?res.d.__metadata.type:REQUESTS_ITEM_TYPE;
+  }
+  return r;
+}
+
+// ─── NORMALIZE / HELPERS ──────────────────────────────────────────────────────
+function normalizeStatus(s){
+  if(!s) return 'review';
+  var m={'under review':'review','accepted':'accepted','approved':'approved',
+    'rejected':'rejected','n/a':'na','paid':'paid','partially paid':'partially-paid',
+    'partially-paid':'partially-paid'};
+  return m[s.toLowerCase()]||'review';
+}
+function statusToStep(st){
+  var m={review:1,accepted:2,approved:3,paid:4,'partially-paid':4,rejected:1,na:0};
+  return m[st]||1;
+}
+function spDateToDisplay(d){
+  if(!d) return '';
+  var dt=new Date(d);
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB');
+}
+function spDateToInput(d){
+  if(!d) return '';
+  var dt=new Date(d);
+  if(isNaN(dt)) return '';
+  return dt.toISOString().slice(0,10);
+}
+function fmt(n){return Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function today(){return new Date().toISOString().slice(0,10);}
+function genRef(){return 'PR-'+Date.now().toString(36).toUpperCase();}
+
+// ─── INIT UI ──────────────────────────────────────────────────────────────────
+function initUI(){
+  buildSdData();
+  renderDash();
+  renderList();
+  renderCheques();
+  renderBulkApprove();
+}
+
+function buildSdData(){
+  sdData.po=Object.keys(poData).sort();
+  var payees=[],paids=[];
+  Object.values(records).forEach(function(r){
+    if(r.payee&&payees.indexOf(r.payee)<0) payees.push(r.payee);
+    if(r.paidto&&paids.indexOf(r.paidto)<0) paids.push(r.paidto);
+  });
+  sdData.payee=payees.sort();
+  sdData.paidto=paids.sort();
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function nav(pg){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.topbar-nav button').forEach(function(b){b.classList.remove('active');});
+  var p=document.getElementById('pg-'+pg);
+  if(p) p.classList.add('active');
+  var nb=document.getElementById('nav-'+pg);
+  if(nb) nb.classList.add('active');
+  if(pg==='dash') renderDash();
+  if(pg==='list') renderList();
+  if(pg==='cheques') renderCheques();
+  if(pg==='bulkapprove') renderBulkApprove();
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg,type){
+  var tc=document.getElementById('toast');
+  var d=document.createElement('div');
+  d.className='toast-item'+(type?' '+type:'');
+  d.textContent=msg;
+  tc.appendChild(d);
+  setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},3500);
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function renderDash(){
+  var recs=Object.values(records);
+  var total=recs.length;
+  var byStatus={};
+  var totalAmt=0,approvedAmt=0,paidAmt=0;
+  recs.forEach(function(r){
+    byStatus[r.status]=(byStatus[r.status]||0)+1;
+    totalAmt+=parseFloat(r.tot)||0;
+    if(r.status==='approved'||r.status==='paid'||r.status==='partially-paid')
+      approvedAmt+=parseFloat(r.approvedAmt||r.tot)||0;
+    if(r.status==='paid') paidAmt+=parseFloat(r.tot)||0;
+  });
+
+  var stats=[
+    {lbl:'Total Requests',val:total,cls:''},
+    {lbl:'Under Review',val:byStatus.review||0,cls:'c-amber'},
+    {lbl:'Approved',val:byStatus.approved||0,cls:'c-blue'},
+    {lbl:'Paid',val:byStatus.paid||0,cls:'c-green'},
+    {lbl:'Rejected',val:byStatus.rejected||0,cls:'c-red'},
+    {lbl:'Total Amount',val:'AED '+fmt(totalAmt),cls:'c-accent'}
+  ];
+  var sc=document.getElementById('dash-stats');
+  sc.innerHTML=stats.map(function(s){
+    return '<div class="stat-card '+s.cls+'" onclick="filterByStatus(\''+s.lbl+'\')"><div class="lbl">'+s.lbl+'</div><div class="val">'+s.val+'</div></div>';
+  }).join('');
+
+  // Status bar chart
+  var colors={review:'#6C5CE7',accepted:'#1A7A4A',approved:'#0369A1',rejected:'#C0392B',na:'#9CA3AF',paid:'#065F46','partially-paid':'#92400E'};
+  var maxS=Math.max(1,...Object.values(byStatus));
+  document.getElementById('chart-status').innerHTML='<div class="bar-chart">'+
+    Object.entries(byStatus).map(function(e){
+      var pct=Math.round((e[1]/maxS)*100);
+      return '<div class="bar-row"><span class="bar-lbl">'+spLbl[e[0]]+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+(colors[e[0]]||'#888')+'"></div></div><span class="bar-val">'+e[1]+'</span></div>';
+    }).join('')+'</div>';
+
+  // Payee chart
+  var payeeAmt={};
+  recs.forEach(function(r){if(r.payee) payeeAmt[r.payee]=(payeeAmt[r.payee]||0)+(parseFloat(r.tot)||0);});
+  var topPayees=Object.entries(payeeAmt).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+  var maxP=Math.max(1,...topPayees.map(function(x){return x[1];}));
+  document.getElementById('chart-payee').innerHTML='<div class="bar-chart">'+
+    topPayees.map(function(e){
+      var pct=Math.round((e[1]/maxP)*100);
+      return '<div class="bar-row"><span class="bar-lbl" title="'+e[0]+'">'+e[0].slice(0,12)+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:#4A3BAA"></div></div><span class="bar-val small">'+fmt(e[1])+'</span></div>';
+    }).join('')+'</div>';
+
+  // Recent table
+  var recent=recs.slice(-10).reverse();
+  var t=document.getElementById('dash-recent');
+  t.innerHTML='<thead><tr><th>Ref</th><th>Payee</th><th>Amount</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>'+
+    recent.map(function(r){
+      return '<tr><td class="bold">'+r.ref+'</td><td>'+r.payee+'</td><td>AED '+fmt(r.tot)+'</td><td><span class="sp '+(spCls[r.status]||'sp-review')+'">'+spLbl[r.status]+'</span></td><td>'+spDateToDisplay(r.date)+'</td><td><button class="btn btn-ghost btn-xs" onclick="loadRec(\''+r.id+'\')">View</button></td></tr>';
+    }).join('')+'</tbody>';
+}
+
+function filterByStatus(lbl){}
+
+// ─── LIST PAGE ────────────────────────────────────────────────────────────────
+function renderList(){
+  var recs=Object.values(records);
+  var search=(document.getElementById('list-search')||{}).value||'';
+  var fStatus=(document.getElementById('list-status')||{}).value||'';
+  var fMeth=(document.getElementById('list-meth')||{}).value||'';
+  var fType=(document.getElementById('list-type')||{}).value||'';
+  search=search.toLowerCase();
+  var filtered=recs.filter(function(r){
+    if(fStatus&&r.status!==fStatus) return false;
+    if(fMeth&&r.meth!==fMeth) return false;
+    if(fType&&r.pt!==fType) return false;
+    if(search&&!(r.ref.toLowerCase().includes(search)||r.payee.toLowerCase().includes(search)||(r.desc||'').toLowerCase().includes(search))) return false;
+    return true;
+  });
+  filtered.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var lc=document.getElementById('list-count');
+  if(lc) lc.textContent=filtered.length+' of '+recs.length+' requests';
+  var t=document.getElementById('list-tbl');
+  if(!t) return;
+  t.innerHTML='<thead><tr><th>Ref</th><th>Date</th><th>Payee</th><th>Description</th><th>Method</th><th>Type</th><th>Amount</th><th>Status</th><th>Release Date</th><th></th></tr></thead><tbody>'+
+    filtered.map(function(r){
+      return '<tr><td class="bold">'+r.ref+'</td><td>'+spDateToDisplay(r.date)+'</td><td>'+r.payee+'</td><td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.desc+'</td><td>'+r.meth+'</td><td>'+r.pt+'</td><td>AED '+fmt(r.tot)+'</td><td><span class="sp '+(spCls[r.status]||'sp-review')+'">'+spLbl[r.status]+'</span></td><td>'+spDateToDisplay(r.relDate)+'</td><td style="white-space:nowrap"><button class="btn btn-ghost btn-xs" onclick="loadRec(\''+r.id+'\')">Review</button> <button class="btn btn-primary btn-xs" onclick="openPayment(\''+r.id+'\')">Payment</button></td></tr>';
+    }).join('')+'</tbody>';
+}
+
+function clearFilters(){
+  ['list-search','list-status','list-meth','list-type'].forEach(function(id){
+    var el=document.getElementById(id);if(el) el.value='';
+  });
+  renderList();
+}
+
+// ─── NEW REQUEST ──────────────────────────────────────────────────────────────
+function newRequest(){
+  var id=genRef();
+  var r={
+    id:id,ref:id,date:today(),requester:CU||'',desc:'',payee:'',paidto:'',
+    meth:'Bank Transfer',inv:'',vat:'No',excl:0,vatAmt:0,tot:0,po:'',pt:'',
+    relDate:'',status:'review',approvedAmt:0,rejRsn:'',proj:'',bankName:'',
+    payments:[],docs:{},log:[],_spId:null,_spType:REQUESTS_ITEM_TYPE
+  };
+  records[id]=r;
+  loadRec(id,true);
+}
+
+// ─── LOAD RECORD ──────────────────────────────────────────────────────────────
+async function loadRec(id,isNew){
+  currentId=id;
+  var r=records[id];
+  if(!r){showToast('Record not found','error');return;}
+
+  // Lazy load payments
+  if(!isNew&&r._spId&&r.payments.length===0){
+    await loadPaymentsForRecord(r.ref||id);
+    r=records[id];
+  }
+
+  nav('review');
+  editMode=!!isNew;
+  var bc=document.getElementById('rev-breadcrumb');
+  if(bc) bc.textContent='Request / '+r.ref;
+
+  fillForm(r);
+  renderSteps(r);
+  renderActions(r);
+  renderDocs(r);
+  renderPaymentsHistory(r);
+  renderStatusLog(r);
+  updateFormEditable();
+
+  if(isNew){
+    var be=document.getElementById('btn-edit'),bs=document.getElementById('btn-save'),bc2=document.getElementById('btn-cancel');
+    if(be) be.style.display='none';
+    if(bs) bs.style.display='inline-flex';
+    if(bc2) bc2.style.display='inline-flex';
+  }
+}
+
+function fillForm(r){
+  function sv(id,val){var e=document.getElementById(id);if(e) e.value=val||'';}
+  sv('f-ref',r.ref);sv('f-date',r.date);sv('f-requester',r.requester);
+  sv('f-desc',r.desc);sv('f-inv',r.inv);sv('f-proj',r.proj);sv('f-bankName',r.bankName);
+  sv('f-excl',r.excl);sv('f-vatAmt',r.vatAmt);sv('f-tot',r.tot);sv('f-approvedAmt',r.approvedAmt);
+  sv('f-relDate',r.relDate);sv('f-rejRsn',r.rejRsn);
+  var vm=document.getElementById('f-meth');if(vm) vm.value=r.meth||'Bank Transfer';
+  var vp=document.getElementById('f-pt');if(vp) vp.value=r.pt||'Advance';
+  var vv=document.getElementById('f-vat');if(vv) vv.value=r.vat||'No';
+  // Searchable dropdowns
+  setSdVal('payee',r.payee);setSdVal('paidto',r.paidto);setSdVal('po',r.po);
+  var rd=document.getElementById('rel-date-inp');if(rd) rd.value=r.relDate||'';
+  // Rejection section
+  var sr=document.getElementById('sec-rejection');
+  if(sr) sr.style.display=(r.status==='rejected'&&r.rejRsn)?'block':'none';
+  // PO info
+  updatePOInfo(r.po);
+}
+
+function updateFormEditable(){
+  var r=records[currentId];
+  if(!r) return;
+  var canEdit=(r.status==='review'||(r.status==='rejected'&&(CU===APPROVER||CU===r.requester)));
+  var inputs=['f-date','f-requester','f-desc','f-inv','f-proj','f-bankName','f-excl','f-vatAmt','f-tot','f-approvedAmt','f-relDate','f-rejRsn'];
+  inputs.forEach(function(id){
+    var e=document.getElementById(id);
+    if(e){e.readOnly=!(editMode&&canEdit);}
+  });
+  ['f-meth','f-pt','f-vat'].forEach(function(id){
+    var e=document.getElementById(id);
+    if(e) e.disabled=!(editMode&&canEdit);
+  });
+  // SD inputs
+  ['sd-payee','sd-paidto','sd-po'].forEach(function(id){
+    var e=document.getElementById(id);
+    if(e) e.readOnly=!(editMode&&canEdit);
+  });
+  var be=document.getElementById('btn-edit'),bs=document.getElementById('btn-save'),bc=document.getElementById('btn-cancel');
+  if(canEdit){
+    if(be) be.style.display=editMode?'none':'inline-flex';
+    if(bs) bs.style.display=editMode?'inline-flex':'none';
+    if(bc) bc.style.display=editMode?'inline-flex':'none';
+  } else {
+    if(be) be.style.display='none';
+    if(bs) bs.style.display='none';
+    if(bc) bc.style.display='none';
+  }
+}
+
+function toggleEdit(){editMode=true;updateFormEditable();initSdDrops();}
+function cancelEdit(){
+  editMode=false;
+  var r=records[currentId];if(r) fillForm(r);
+  updateFormEditable();
+}
+
+function doSave(){
+  var r=records[currentId];if(!r) return;
+  r.ref=gv('f-ref')||r.ref;
+  r.date=gv('f-date');r.requester=gv('f-requester');r.desc=gv('f-desc');
+  r.inv=gv('f-inv');r.proj=gv('f-proj');r.bankName=gv('f-bankName');
+  r.payee=gvSD('payee');r.paidto=gvSD('paidto');r.po=gvSD('po');
+  r.meth=gvSel('f-meth');r.pt=gvSel('f-pt');r.vat=gvSel('f-vat');
+  r.excl=parseFloat(gv('f-excl'))||0;
+  r.vatAmt=parseFloat(gv('f-vatAmt'))||0;
+  r.tot=parseFloat(gv('f-tot'))||0;
+  r.approvedAmt=parseFloat(gv('f-approvedAmt'))||0;
+  r.relDate=gv('f-relDate');
+  if(!r.id) r.id=r.ref;
+  records[r.id]=r;
+  editMode=false;
+  updateFormEditable();
+  renderList();
+  buildSdData();
+  showToast('Record saved','success');
+
+  // SP write
+  if(r._spId){
+    saveRecordToSP(r);
+  } else {
+    // Create new item
+    createItemInSP(r).then(function(updated){
+      records[updated.id]=updated;
+      showToast('Created in SharePoint','success');
+    }).catch(function(e){showToast('SP create failed: '+e.message,'error');});
+  }
+}
+
+function gv(id){var e=document.getElementById(id);return e?e.value:'';}
+function gvSel(id){var e=document.getElementById(id);return e?e.value:'';}
+function gvSD(key){var e=document.getElementById('sd-'+key);return e?e.value:'';}
+
+// ─── STEPS ────────────────────────────────────────────────────────────────────
+function renderSteps(r){
+  var step=statusToStep(r.status);
+  var wrap=document.getElementById('review-steps');
+  if(!wrap) return;
+  var html='';
+  stepLabels.forEach(function(lbl,i){
+    var st=i<step?'done':(i===step?'active':'pending');
+    if(i>0) html+='<div class="step-line '+(i<=step?'done':'')+'"></div>';
+    html+='<div class="step"><div class="step-dot '+st+'">'+(i<step?'&#10003;':(i+1))+'</div><span class="step-lbl '+st+'">'+lbl+'</span></div>';
+  });
+  wrap.innerHTML=html;
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function renderActions(r){
+  var ab=document.getElementById('action-buttons');
+  var al=document.getElementById('action-lbl');
+  if(!ab) return;
+  var btns='';
+  var isApprover=CU===APPROVER;
+
+  if(r.status==='review'){
+    if(isApprover){
+      btns+='<button class="btn btn-success w100 mb8" onclick="doAccept()">&#10003; Accept</button>';
+      btns+='<button class="btn btn-danger w100 mb8" onclick="doReject()">&#10007; Reject</button>';
+      btns+='<button class="btn btn-warn w100 mb8" onclick="doNAFromDetails()">Mark N/A</button>';
+    } else {
+      btns+='<div class="alert alert-info">Awaiting review by approver</div>';
+    }
+  } else if(r.status==='accepted'){
+    if(isApprover){
+      btns+='<button class="btn btn-success w100 mb8" onclick="doApprove()">&#10003; Approve for Payment</button>';
+      btns+='<button class="btn btn-danger w100 mb8" onclick="doIntReject()">Reject</button>';
+    }
+    btns+='<button class="btn btn-ghost w100 mb8" onclick="doIntAccept()">Internal Accept</button>';
+  } else if(r.status==='approved'){
+    btns+='<button class="btn btn-primary w100 mb8" onclick="openPayment(\''+r.id+'\')">Record Payment</button>';
+    if(isApprover) btns+='<button class="btn btn-danger w100 mb8" onclick="doIntReject()">Reject</button>';
+  } else if(r.status==='partially-paid'){
+    btns+='<button class="btn btn-primary w100 mb8" onclick="openPayment(\''+r.id+'\')">Add Payment</button>';
+  } else if(r.status==='paid'){
+    btns+='<div class="alert alert-success">&#10003; Fully Paid</div>';
+  } else if(r.status==='rejected'){
+    btns+='<div class="alert alert-danger">Rejected: '+(r.rejRsn||'No reason given')+'</div>';
+    if(isApprover) btns+='<button class="btn btn-ghost w100 mt8" onclick="doAccept()">Re-accept</button>';
+  } else if(r.status==='na'){
+    btns+='<div class="alert alert-warn">Marked as N/A</div>';
+  }
+
+  ab.innerHTML=btns||'<p class="muted small">No actions available</p>';
+  if(al) al.textContent='Status: '+(spLbl[r.status]||r.status);
+}
+
+function doAccept(){
+  var r=records[currentId];if(!r) return;
+  r.status='accepted';
+  r.log=r.log||[];
+  r.log.push({action:'Accepted',by:CU,at:new Date().toISOString()});
+  renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Request accepted');
+  saveRecordToSP(r);
+  renderList();
+}
+
+function doReject(){
+  document.getElementById('rej-reason').value='';
+  openModal('modal-reject');
+}
+function confirmReject(){
+  var rsn=document.getElementById('rej-reason').value.trim();
+  if(!rsn){showToast('Please enter a reason','error');return;}
+  var r=records[currentId];if(!r) return;
+  r.status='rejected';r.rejRsn=rsn;
+  r.log=r.log||[];
+  r.log.push({action:'Rejected: '+rsn,by:CU,at:new Date().toISOString()});
+  closeModal('modal-reject');
+  fillForm(r);renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Request rejected');
+  saveRecordToSP(r);
+  renderList();
+}
+
+function doApprove(){
+  var r=records[currentId];if(!r) return;
+  var amt=parseFloat(prompt('Enter approved amount (AED):',(r.tot||0).toString()));
+  if(isNaN(amt)||amt<0){showToast('Invalid amount','error');return;}
+  r.status='approved';r.approvedAmt=amt;
+  r.log=r.log||[];
+  r.log.push({action:'Approved for AED '+fmt(amt),by:CU,at:new Date().toISOString()});
+  fillForm(r);renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Request approved');
+  saveRecordToSP(r);
+  renderList();
+}
+
+function doNAFromDetails(){openModal('modal-na');}
+function confirmNA(){
+  var r=records[currentId];if(!r) return;
+  r.status='na';
+  r.log=r.log||[];
+  r.log.push({action:'Marked N/A',by:CU,at:new Date().toISOString()});
+  closeModal('modal-na');
+  renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Marked as N/A');
+  saveRecordToSP(r);
+  renderList();
+}
+
+function doIntAccept(){
+  var r=records[currentId];if(!r) return;
+  r.log=r.log||[];
+  r.log.push({action:'Internal Accept',by:CU,at:new Date().toISOString()});
+  renderStatusLog(r);showToast('Internal accept noted');
+  saveRecordToSP(r);
+}
+function doIntReject(){
+  document.getElementById('int-rej-reason').value='';
+  openModal('modal-int-reject');
+}
+function confirmIntReject(){
+  var rsn=document.getElementById('int-rej-reason').value.trim();
+  if(!rsn){showToast('Please enter a reason','error');return;}
+  var r=records[currentId];if(!r) return;
+  r.status='rejected';r.rejRsn=rsn;
+  r.log=r.log||[];
+  r.log.push({action:'Internal Reject: '+rsn,by:CU,at:new Date().toISOString()});
+  closeModal('modal-int-reject');
+  fillForm(r);renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Internal reject');
+  saveRecordToSP(r);
+  renderList();
+}
+function doIntApprove(){
+  var r=records[currentId];if(!r) return;
+  r.status='approved';
+  r.log=r.log||[];
+  r.log.push({action:'Internal Approve',by:CU,at:new Date().toISOString()});
+  renderSteps(r);renderActions(r);renderStatusLog(r);
+  showToast('Internally approved');
+  saveRecordToSP(r);
+  renderList();
+}
+
+function saveRelDate(){
+  var r=records[currentId];if(!r) return;
+  var d=document.getElementById('rel-date-inp');
+  if(!d) return;
+  r.relDate=d.value;
+  document.getElementById('f-relDate').value=d.value;
+  showToast('Release date saved');
+  saveRecordToSP(r);
+}
+
+// ─── DOCS ─────────────────────────────────────────────────────────────────────
+function renderDocs(r){
+  var el=document.getElementById('docs-list');
+  if(!el) return;
+  var html='';
+  docDefs.forEach(function(d){
+    var has=r.docs&&r.docs[d.key];
+    html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">';
+    html+='<span style="flex:1;font-size:12px">'+d.label+'</span>';
+    if(has){
+      html+='<a href="'+has.url+'" target="_blank" class="btn btn-ghost btn-xs">&#128196; View</a>';
+      html+='<button class="btn btn-danger btn-xs" onclick="removeDoc(\''+d.key+'\')">Remove</button>';
+    } else {
+      html+='<label class="btn btn-ghost btn-xs" style="cursor:pointer">Upload<input type="file" style="display:none" onchange="uploadDoc(event,\''+d.key+'\')" accept=".pdf,.jpg,.jpeg,.png,.docx"></label>';
+    }
+    html+='</div>';
+  });
+  el.innerHTML=html||'<p class="muted small">No documents configured</p>';
+}
+function uploadDoc(evt,key){
+  var r=records[currentId];if(!r) return;
+  var file=evt.target.files[0];if(!file) return;
+  if(!r.docs) r.docs={};
+  r.docs[key]={name:file.name,url:URL.createObjectURL(file)};
+  renderDocs(r);showToast('Document attached (local only)','warn');
+}
+function removeDoc(key){
+  var r=records[currentId];if(!r) return;
+  if(r.docs) delete r.docs[key];
+  renderDocs(r);
+}
+
+// ─── PAYMENTS ─────────────────────────────────────────────────────────────────
+function renderPaymentsHistory(r){
+  var el=document.getElementById('payments-history');
+  if(!el) return;
+  var pmts=r.payments||[];
+  if(!pmts.length){el.innerHTML='<p class="muted small">No payments recorded yet.</p>';return;}
+  el.innerHTML=pmts.map(function(p,i){
+    return '<div class="pmt-card"><div class="pmt-card-hd"><span class="pmt-ref">'+(p.txn||'PMT-'+(i+1))+'</span><span class="sp '+(p.cleared?'sp-paid':'sp-pending')+'">'+(p.cleared?'Cleared':'Pending')+'</span></div>'+
+    '<div class="pmt-meta">'+
+    '<div><span class="k">Method</span><span class="v">'+p.method+'</span></div>'+
+    '<div><span class="k">Amount</span><span class="v">'+p.currency+' '+fmt(p.amount)+'</span></div>'+
+    '<div><span class="k">Date</span><span class="v">'+spDateToDisplay(p.date)+'</span></div>'+
+    '<div><span class="k">Bank</span><span class="v">'+(p.bank||'-')+'</span></div>'+
+    (p.remarks?'<div><span class="k">Remarks</span><span class="v">'+p.remarks+'</span></div>':'')+
+    '</div></div>';
+  }).join('');
+}
+
+function renderStatusLog(r){
+  var el=document.getElementById('status-log');
+  if(!el) return;
+  var log=r.log||[];
+  if(!log.length){el.innerHTML='No log yet.';return;}
+  el.innerHTML=log.slice().reverse().map(function(l){
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--border)"><div style="font-weight:600">'+l.action+'</div><div class="muted" style="font-size:10px">'+(l.by||'')+(l.at?' · '+new Date(l.at).toLocaleString():'')+'</div></div>';
+  }).join('');
+}
+
+// ─── PAYMENT PAGE ─────────────────────────────────────────────────────────────
+function openPayment(id){
+  currentId=id;
+  var r=records[id];if(!r) return;
+  nav('payment');
+  var bc=document.getElementById('pmt-breadcrumb');
+  if(bc) bc.textContent='Payment / '+r.ref;
+  renderPmtSummary(r);
+  renderPmtList(r);
+  // Default values
+  var md=document.getElementById('pmt-meth');if(md) md.value=r.meth||'Bank Transfer';
+  var bd=document.getElementById('pmt-bank');if(bd) bd.value=r.bankName||'';
+  var dd=document.getElementById('pmt-date');if(dd) dd.value=today();
+}
+
+function renderPmtSummary(r){
+  var el=document.getElementById('pmt-summary');if(!el) return;
+  var pmts=r.payments||[];
+  var paid=pmts.reduce(function(s,p){return s+(parseFloat(p.amount)||0);},0);
+  var tot=parseFloat(r.tot)||0;
+  var remaining=tot-paid;
+  el.innerHTML='<div class="det-grid">'+
+    '<div class="det-item"><div class="lbl">Total Amount</div><div class="val">AED '+fmt(tot)+'</div></div>'+
+    '<div class="det-item"><div class="lbl">Total Paid</div><div class="val" style="color:var(--green)">AED '+fmt(paid)+'</div></div>'+
+    '<div class="det-item"><div class="lbl">Remaining</div><div class="val" style="color:'+(remaining>0?'var(--red)':'var(--green)')+'">AED '+fmt(remaining)+'</div></div>'+
+    '<div class="det-item"><div class="lbl">Status</div><div class="val"><span class="sp '+(spCls[r.status]||'sp-review')+'">'+spLbl[r.status]+'</span></div></div>'+
+    '</div>';
+}
+
+function renderPmtList(r){
+  var el=document.getElementById('pmt-list');if(!el) return;
+  var pmts=r.payments||[];
+  if(!pmts.length){el.innerHTML='<p class="muted small">No payments yet.</p>';return;}
+  el.innerHTML='<div class="sec-title mt8">Payment Records</div>'+pmts.map(function(p,i){
+    return '<div class="pmt-card"><div class="pmt-card-hd"><span class="pmt-ref">'+(p.txn||'PMT-'+(i+1))+'</span>'+
+      '<span class="sp '+(p.cleared?'sp-paid':'sp-pending')+'">'+(p.cleared?'Cleared':'Pending')+'</span></div>'+
+      '<div class="pmt-meta">'+
+      '<div><span class="k">Method</span><span class="v">'+p.method+'</span></div>'+
+      '<div><span class="k">Amount</span><span class="v">'+p.currency+' '+fmt(p.amount)+'</span></div>'+
+      '<div><span class="k">Date</span><span class="v">'+spDateToDisplay(p.date)+'</span></div>'+
+      '<div><span class="k">Bank</span><span class="v">'+(p.bank||'-')+'</span></div>'+
+      '</div>'+
+      (!p.cleared&&p.method==='Cheque'?'<button class="btn btn-success btn-xs mt8" onclick="markCleared('+i+')">Mark Cleared</button>':'')+
+      '</div>';
+  }).join('');
+}
+
+async function addPayment(){
+  var r=records[currentId];if(!r) return;
+  var pmt={
+    method:gvSel('pmt-meth'),bank:gv('pmt-bank'),txn:gv('pmt-txn'),
+    date:gv('pmt-date'),chequeDate:gv('pmt-cheque-date'),
+    amount:parseFloat(gv('pmt-amt'))||0,
+    currency:gvSel('pmt-currency'),fx:parseFloat(gv('pmt-fx'))||1,
+    remarks:gv('pmt-remarks'),recordedBy:CU,stage:'',cleared:false
+  };
+  if(!pmt.amount){showToast('Enter a valid amount','error');return;}
+  if(!r.payments) r.payments=[];
+  r.payments.push(pmt);
+
+  // Update status
+  var paid=r.payments.reduce(function(s,p){return s+(parseFloat(p.amount)||0);},0);
+  var tot=parseFloat(r.tot)||0;
+  if(paid>=tot) r.status='paid';
+  else r.status='partially-paid';
+  r.log=r.log||[];
+  r.log.push({action:'Payment recorded: AED '+fmt(pmt.amount),by:CU,at:new Date().toISOString()});
+
+  renderPmtSummary(r);renderPmtList(r);
+  showToast('Payment recorded');
+
+  // SP writes (fire and forget)
+  savePaymentToSP(r.ref||r.id,pmt).then(function(spId){
+    if(spId) pmt._spId=spId;
+  });
+  saveRecordToSP(r);
+  renderList();
+
+  // Clear form
+  ['pmt-txn','pmt-amt','pmt-remarks'].forEach(function(id){var e=document.getElementById(id);if(e) e.value='';});
+  var pd=document.getElementById('pmt-cheque-date');if(pd) pd.value='';
+}
+
+async function markCleared(idx){
+  var r=records[currentId];if(!r) return;
+  var p=r.payments[idx];if(!p) return;
+  p.cleared=true;p.clearanceDate=today();
+  renderPmtList(r);showToast('Cheque marked cleared');
+  if(p._spId){
+    updatePaymentInSP(p._spId,{
+      'ClearanceDate':new Date(p.clearanceDate).toISOString(),
+      '__metadata':{'type':'SP.ListItem'}
+    });
+  }
+  saveRecordToSP(r);
+}
+
+// ─── CHEQUES ──────────────────────────────────────────────────────────────────
+function renderCheques(){
+  var search=((document.getElementById('cheq-search')||{}).value||'').toLowerCase();
+  var rows=[];
+  Object.values(records).forEach(function(r){
+    (r.payments||[]).forEach(function(p,i){
+      if(p.method==='Cheque'&&!p.cleared){
+        rows.push({r:r,p:p,i:i});
+      }
+    });
+  });
+  if(search) rows=rows.filter(function(x){
+    return x.r.ref.toLowerCase().includes(search)||x.r.payee.toLowerCase().includes(search)||(x.p.txn||'').toLowerCase().includes(search);
+  });
+  var t=document.getElementById('cheq-tbl');if(!t) return;
+  if(!rows.length){t.innerHTML='<tbody><tr><td colspan="7" class="text-center muted" style="padding:24px">No uncleared cheques found</td></tr></tbody>';return;}
+  t.innerHTML='<thead><tr><th>Request Ref</th><th>Payee</th><th>Cheque No</th><th>Cheque Date</th><th>Amount</th><th>Bank</th><th></th></tr></thead><tbody>'+
+    rows.map(function(x){
+      return '<tr><td class="bold">'+x.r.ref+'</td><td>'+x.r.payee+'</td><td>'+(x.p.txn||'-')+'</td><td>'+spDateToDisplay(x.p.chequeDate)+'</td><td>AED '+fmt(x.p.amount)+'</td><td>'+(x.p.bank||'-')+'</td>'+
+      '<td><button class="btn btn-success btn-xs" onclick="markClearedFromCheques(\''+x.r.id+'\','+x.i+')">Mark Cleared</button></td></tr>';
+    }).join('')+'</tbody>';
+}
+
+function markClearedFromCheques(id,idx){
+  currentId=id;
+  markCleared(idx).then(function(){renderCheques();});
+}
+
+// ─── BULK UPLOAD ──────────────────────────────────────────────────────────────
+function bulkDrop(e){e.preventDefault();bulkDragLeave(e);var f=e.dataTransfer.files[0];if(f) parseBulkCSV(f);}
+function bulkDragOver(e){e.preventDefault();document.getElementById('bulk-drop').classList.add('drag');}
+function bulkDragLeave(e){document.getElementById('bulk-drop').classList.remove('drag');}
+function bulkFileSelected(e){var f=e.target.files[0];if(f) parseBulkCSV(f);}
+
+function parseBulkCSV(file){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+    if(!lines.length){showToast('Empty file','error');return;}
+    var headers=lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'');});
+    bulkRows=[];
+    for(var i=1;i<lines.length;i++){
+      var cols=lines[i].split(',').map(function(c){return c.trim().replace(/^"|"$/g,'');});
+      var row={};
+      headers.forEach(function(h,j){row[h]=cols[j]||'';});
+      bulkRows.push(row);
+    }
+    renderBulkPreview();
+  };
+  reader.readAsText(file);
+}
+
+function renderBulkPreview(){
+  var el=document.getElementById('bulk-preview');
+  var ba=document.getElementById('bulk-actions');
+  if(!bulkRows.length){if(el) el.innerHTML='';return;}
+  var html='<div class="tbl-wrap mt8"><table class="tbl"><thead><tr><th>#</th><th>Ref</th><th>Date</th><th>Payee</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>';
+  bulkRows.forEach(function(r,i){
+    var valid=r.ref||r.payee;
+    html+='<tr><td>'+(i+1)+'</td><td>'+(r.ref||'<span class="muted">auto</span>')+'</td><td>'+r.date+'</td><td>'+r.payee+'</td><td>'+(r.tot||r.excl||'')+'</td><td>'+(r.meth||'')+'</td><td><span class="sp '+(valid?'sp-accepted':'sp-rejected')+'">'+(valid?'Valid':'Invalid')+'</span></td></tr>';
+  });
+  html+='</tbody></table></div>';
+  if(el) el.innerHTML=html;
+  if(ba) ba.style.display='block';
+}
+
+async function bulkImport(){
+  var valid=bulkRows.filter(function(r){return r.ref||r.payee;});
+  if(!valid.length){showToast('No valid rows','error');return;}
+  showLoader('Importing '+valid.length+' records...');
+  var ok=0,fail=0;
+  for(var i=0;i<valid.length;i++){
+    var row=valid[i];
+    var id=row.ref||genRef();
+    var r={
+      id:id,ref:id,date:row.date||today(),requester:row.requester||CU||'',
+      desc:row.desc||'',payee:row.payee||'',paidto:row.paidto||'',
+      meth:row.meth||'Bank Transfer',inv:row.inv||'',vat:row.vat||'No',
+      excl:parseFloat(row.excl)||0,vatAmt:parseFloat(row.vatAmt)||0,
+      tot:parseFloat(row.tot)||0,po:row.po||'',pt:row.pt||'',
+      relDate:row.relDate||'',status:'review',approvedAmt:0,rejRsn:'',
+      proj:row.proj||'',bankName:row.bankName||'',
+      payments:[],docs:{},log:[],_spId:null,_spType:REQUESTS_ITEM_TYPE
+    };
+    records[id]=r;
+    try{
+      await createItemInSP(r);
+      ok++;
+    }catch(e){fail++;}
+  }
+  hideLoader();
+  showToast('Imported '+ok+' records'+(fail?' ('+fail+' failed)':''),'success');
+  clearBulk();
+  buildSdData();
+  renderList();
+}
+
+function clearBulk(){
+  bulkRows=[];
+  var el=document.getElementById('bulk-preview');if(el) el.innerHTML='';
+  var ba=document.getElementById('bulk-actions');if(ba) ba.style.display='none';
+  var fi=document.getElementById('bulk-file');if(fi) fi.value='';
+}
+
+// ─── BULK APPROVE ─────────────────────────────────────────────────────────────
+function renderBulkApprove(){
+  var recs=Object.values(records).filter(function(r){return r.status==='accepted';});
+  var t=document.getElementById('bulkapprove-tbl');if(!t) return;
+  if(!recs.length){t.innerHTML='<tbody><tr><td colspan="6" class="text-center muted" style="padding:24px">No accepted requests pending approval</td></tr></tbody>';return;}
+  t.innerHTML='<thead><tr><th><input type="checkbox" id="ba-all" onchange="baToggleAll(this)"></th><th>Ref</th><th>Payee</th><th>Amount</th><th>Date</th><th>Type</th></tr></thead><tbody>'+
+    recs.map(function(r){
+      return '<tr><td><input type="checkbox" class="ba-chk" value="'+r.id+'"></td><td class="bold">'+r.ref+'</td><td>'+r.payee+'</td><td>AED '+fmt(r.tot)+'</td><td>'+spDateToDisplay(r.date)+'</td><td>'+r.pt+'</td></tr>';
+    }).join('')+'</tbody>';
+}
+
+function baToggleAll(cb){
+  document.querySelectorAll('.ba-chk').forEach(function(c){c.checked=cb.checked;});
+}
+
+async function doBulkApprove(){
+  var checked=Array.from(document.querySelectorAll('.ba-chk:checked')).map(function(c){return c.value;});
+  if(!checked.length){showToast('Select at least one request','error');return;}
+  var amt=parseFloat(prompt('Enter approved amount for all selected (or 0 to use each total):','0'));
+  var ok=0;
+  for(var i=0;i<checked.length;i++){
+    var r=records[checked[i]];
+    if(!r) continue;
+    r.status='approved';
+    r.approvedAmt=amt>0?amt:(parseFloat(r.tot)||0);
+    r.log=r.log||[];
+    r.log.push({action:'Bulk approved for AED '+fmt(r.approvedAmt),by:CU,at:new Date().toISOString()});
+    saveRecordToSP(r);
+    ok++;
+  }
+  showToast('Bulk approved '+ok+' requests','success');
+  renderBulkApprove();renderList();
+}
+
+// ─── SEARCHABLE DROPDOWNS ─────────────────────────────────────────────────────
+function initSdDrops(){
+  ['payee','paidto','po'].forEach(function(key){
+    fillSdDrop(key,'');
+  });
+}
+
+function togSD(key){
+  var drop=document.getElementById('sdd-'+key);
+  if(!drop) return;
+  var isOpen=drop.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.sd-drop').forEach(function(d){d.classList.remove('open');});
+  if(!isOpen){
+    fillSdDrop(key,document.getElementById('sd-'+key).value||'');
+    drop.classList.add('open');
+    var inp=document.getElementById('sd-'+key);
+    if(inp) inp.readOnly=false;
+  }
+}
+
+function filtSD(key){
+  var q=document.getElementById('sd-'+key).value||'';
+  fillSdDrop(key,q);
+  document.getElementById('sdd-'+key).classList.add('open');
+}
+
+function fillSdDrop(key,q){
+  var drop=document.getElementById('sdd-'+key);if(!drop) return;
+  var opts=sdData[key]||[];
+  q=(q||'').toLowerCase();
+  var filtered=opts.filter(function(o){return !q||o.toLowerCase().includes(q);});
+  if(!filtered.length){
+    drop.innerHTML='<div class="sd-opt sd-empty">No options</div>';
+    return;
+  }
+  drop.innerHTML=filtered.slice(0,50).map(function(o){
+    return '<div class="sd-opt" onclick="pickSD(\''+key+'\',\''+o.replace(/'/g,"\\'")+'\')" onmousedown="event.preventDefault()">'+o+'</div>';
+  }).join('');
+}
+
+function pickSD(key,val){
+  var inp=document.getElementById('sd-'+key);
+  if(inp) inp.value=val;
+  var drop=document.getElementById('sdd-'+key);
+  if(drop) drop.classList.remove('open');
+  if(key==='po') updatePOInfo(val);
+}
+
+function setSdVal(key,val){
+  var inp=document.getElementById('sd-'+key);
+  if(inp) inp.value=val||'';
+}
+
+function updatePOInfo(poNum){
+  var box=document.getElementById('po-info-box');if(!box) return;
+  var pd=poData[poNum];
+  if(!pd||!poNum){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML='<div class="po-row">'+
+    '<div class="po-kv"><span class="k">Supplier</span><span class="v">'+pd.supplier+'</span></div>'+
+    '<div class="po-kv"><span class="k">PO Value</span><span class="v">AED '+fmt(pd.value)+'</span></div>'+
+    '<div class="po-kv"><span class="k">Project</span><span class="v">'+pd.proj+'</span></div>'+
+    '<div class="po-kv"><span class="k">Payment Terms</span><span class="v">'+pd.terms+' days</span></div>'+
+    '<div class="po-kv"><span class="k">Advance</span><span class="v">'+(pd.advance==='Yes'?pd.advPct+'%':'No')+'</span></div>'+
+    '<div class="po-kv"><span class="k">VAT</span><span class="v">'+pd.vat+'</span></div>'+
+    '</div>';
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.sd-wrap')){
+    document.querySelectorAll('.sd-drop').forEach(function(d){d.classList.remove('open');});
+  }
+});
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(id){var m=document.getElementById(id);if(m) m.classList.add('open');}
+function closeModal(id){var m=document.getElementById(id);if(m) m.classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(function(m){
+  m.addEventListener('click',function(e){if(e.target===m) m.classList.remove('open');});
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async function(){
+  // Handle redirect response (if using redirect flow)
+  await msalInstance.handleRedirectPromise().catch(function(){});
+  var accounts = msalInstance.getAllAccounts();
+  if(accounts.length > 0){
+    // Already signed in — load data directly
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('btn-logout').style.display='';
+    loadAllData();
+  } else {
+    // Show login screen
+    document.getElementById('login-screen').style.display='flex';
+  }
+})();
+</script>
+</body>
+</html>
