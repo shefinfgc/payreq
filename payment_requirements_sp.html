@@ -788,7 +788,7 @@ async function loadAllData(){
 }
 
 async function loadRequests(){
-  var url=SITE+'/_api/web/lists/getbytitle(\'Payment Requests\')/items?$top=5000&$select=*,ID';
+  var url=SITE+'/_api/web/lists/getbytitle(\'Payments Requirements - Consolidated\')/items?$top=5000&$select=*,ID';
   var all=[];
   while(url){
     var j=await spGet(url);
@@ -833,7 +833,7 @@ function mapItemToRecord(item){
 }
 
 async function loadPOData(){
-  var url=SITE+'/_api/web/lists/getbytitle(\'PO Details\')/items?$top=5000&$select=*';
+  var url=SITE+'/_api/web/lists/getbytitle(\'Purchase Orders\')/items?$top=5000&$select=*';
   var j=await spGet(url);
   (j.d.results||[]).forEach(function(item){
     var pn=item.PO_x0020_Number||'';
@@ -910,7 +910,7 @@ async function saveRecordToSP(r){
     'Project_x0020_No':r.proj||'',
     'Bank_x0020_Name':r.bankName||''
   };
-  var url=SITE+'/_api/web/lists/getbytitle(\'Payment Requests\')/items('+r._spId+')';
+  var url=SITE+'/_api/web/lists/getbytitle(\'Payments Requirements - Consolidated\')/items('+r._spId+')';
   spPatch(url,body).then(function(){
     showToast('Saved to SharePoint','success');
   }).catch(function(e){
@@ -980,7 +980,7 @@ async function createItemInSP(r){
     'Project_x0020_No':r.proj||'',
     'Bank_x0020_Name':r.bankName||''
   };
-  var url=SITE+'/_api/web/lists/getbytitle(\'Payment Requests\')/items';
+  var url=SITE+'/_api/web/lists/getbytitle(\'Payments Requirements - Consolidated\')/items';
   var res=await spPost(url,body);
   if(res&&res.d){
     r._spId=res.d.ID;
