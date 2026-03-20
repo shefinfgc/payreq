@@ -160,6 +160,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:12px;background:var(-
   <div id="login-status" style="font-size:11px;color:#6B6962"></div>
 </div>
 
+<div id="sp-field-diag" style="display:none;position:fixed;top:60px;right:16px;z-index:8888;max-height:80vh;overflow-y:auto;max-width:500px"></div>
+
 <div class="topbar">
   <div class="topbar-logo">&#9783; Payment Requirements</div>
   <div class="topbar-nav">
@@ -3213,6 +3215,13 @@ function loadRequests(){
       /* Show first item values so we can identify field names */
       var sample={};fields.forEach(function(k){if(items[0][k]!==null&&items[0][k]!==undefined)sample[k]=items[0][k];});
       console.log('[SP] First item values:',JSON.stringify(sample));
+      /* Visible diagnostic panel */
+      var diag=document.getElementById('sp-field-diag');
+      if(diag){
+        var rows=fields.map(function(k){var v=items[0][k];return'<tr><td style="padding:2px 8px;border-bottom:1px solid #eee;font-weight:600">'+k+'</td><td style="padding:2px 8px;border-bottom:1px solid #eee;color:#555">'+((v===null||v===undefined)?'<em>null</em>':String(v).substring(0,60))+'</td></tr>';}).join('');
+        diag.innerHTML='<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:12px;font-size:11px;font-family:monospace"><strong>SP Field Names (first item)</strong> — share this screenshot<br><br><table>'+rows+'</table><button onclick="this.parentNode.parentNode.style.display=\'none\'" style="margin-top:8px;padding:3px 10px;cursor:pointer">Close</button></div>';
+        diag.style.display='block';
+      }
     }
     records={};
     items.forEach(function(item){
@@ -3232,7 +3241,7 @@ function loadRequests(){
         pt:fldG(item,['PT','PayType','InvoiceType','PaymentCategory','PaymentType','InvoiceType0','PT0'])||'',
         po:fldG(item,['PO_x0020_Number','PONumber','PO','PONo','PO_x0020_No','POReference','PO_x0020_Number0','PurchaseOrder','PO0','PORef'])||'',
         payee:fldG(item,['Payee','SupplierName','Supplier','PayeeName','Payee0','Payee_x0020_Name','Beneficiary'])||'',
-        paidto:fldG(item,['Paid_x0020_To','PaidTo','Paid_x0020_to','PaidTo0','PaidToName','Bank_x0020_Name','BankName','Paid_x0020_to_x002F_Bank','PaidTo_x0020_Name'])||'',
+        paidto:fldG(item,['PaidTo','PaidToName','Paid_x0020_to','PaidTo0','Bank_x0020_Name','BankName','Paid_x0020_to_x002F_Bank','PaidTo_x0020_Name'])||'',
         meth:fldG(item,['Method','PaymentMethod','Method0','PayMethod','Payment_x0020_Method','PaymentMode'])||'',
         inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice_x0020_Number','InvoiceNo0','Invoice'])||'',
         vat:fldG(item,['VAT','Vat','VATStatus','VAT_x0020_Applicable','VATApplicable','Vat0'])||'yes',
