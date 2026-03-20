@@ -3223,37 +3223,42 @@ function loadRequests(){
         diag.style.display='block';
       }
     }
+    /* Map SP status string to app status key */
+    function spStat(s){
+      var m={'under review':'review','open':'review','under-review':'review','accepted':'accepted','approve':'approved','approved':'approved','reject':'rejected','rejected':'rejected','paid':'paid','fully paid':'paid','partially paid':'partially-paid','partially-paid':'partially-paid','n/a':'na','na':'na','not applicable':'na','nil':'na'};
+      return m[(s||'').toLowerCase().trim()]||'review';
+    }
     records={};
     items.forEach(function(item){
-      var ref=fldG(item,['Title','RefNo','Ref','ReferenceNo','Reference','PayReqRef'])||(String(item.Id));
-      var status=(fldG(item,['Status','Status0','PayStatus'])||'review').toLowerCase().replace(/\s+/g,'-');
-      var type=(fldG(item,['Type','PaymentType0','RequestType','ReqType','PayReqType','Category','Type0'])||'external').toLowerCase();
-      if(type!=='internal')type='external';
+      var ref=fldG(item,['ReferenceNo','Title','RefNo','Ref','Reference','PayReqRef'])||(String(item.Id));
+      var status=spStat(fldG(item,['Status','R_x002d_Status','ReleasedStatus'])||'');
+      var rawType=(fldG(item,['RequestedParty','Type','RequestType','ReqType','Category'])||'external').toLowerCase();
+      var type=(rawType==='internal'||rawType==='employee')?'internal':'external';
       var r={
         _spId:item.Id,
         ref:ref,
         type:type,
-        date:spDate(fldG(item,['Received_x0020_Date','ReceivedDate','Date','Date0','DateReceived','DateCreated','ReceiveDate','Date_x0020_Received','EmailDate','RequestDate','Receive_x0020_Date'])||''),
-        requester:fldG(item,['Requester','RequesterEmail','RequestedBy','AuthorEmail','RequesterEmail0','From','SenderEmail'])||'',
-        desc:fldG(item,['Description','Description0','Desc','PaymentDesc','Subject','Details','Particulars'])||'',
+        date:spDate(fldG(item,['RequestedDate','ReceivedDate','Received_x0020_Date','Date','Date0','DateReceived','ReceiveDate'])||''),
+        requester:fldG(item,['RequesterEmail','Requester','RequestedBy','AuthorEmail','From','SenderEmail'])||'',
+        desc:fldG(item,['Description','Description0','Desc','PaymentDesc','Subject'])||'',
         status:status,
-        step:parseInt(fldG(item,['Step','Step0','WorkflowStep','Stage','StepNo'])||1)||1,
-        pt:fldG(item,['PT','PayType','InvoiceType','PaymentCategory','PaymentType','InvoiceType0','PT0'])||'',
-        po:fldG(item,['PO_x0020_Number','PONumber','PO','PONo','PO_x0020_No','POReference','PO_x0020_Number0','PurchaseOrder','PO0','PORef'])||'',
-        payee:fldG(item,['Payee','SupplierName','Supplier','PayeeName','Payee0','Payee_x0020_Name','Beneficiary'])||'',
-        paidto:fldG(item,['PaidTo','PaidToName','Paid_x0020_to','PaidTo0','Bank_x0020_Name','BankName','Paid_x0020_to_x002F_Bank','PaidTo_x0020_Name'])||'',
-        meth:fldG(item,['Method','PaymentMethod','Method0','PayMethod','Payment_x0020_Method','PaymentMode'])||'',
-        inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice_x0020_Number','InvoiceNo0','Invoice'])||'',
-        vat:fldG(item,['VAT','Vat','VATStatus','VAT_x0020_Applicable','VATApplicable','Vat0'])||'yes',
-        excl:parseFloat(fldG(item,['Amount','ExclAmount','ExclAmt','NetAmount','AmountExcVAT','InvoiceAmount','Amount0','Excl_x0020_Amount','ExcVAT','ExclVAT','NetAmt','InvoiceAmt'])||0)||0,
-        relDate:spDate(fldG(item,['ReleaseDate','RelDate','Release_x0020_Date','PlannedReleaseDate','Release_x0020_Date0','PaymentDate','PayDate'])||''),
-        reqDate:spDate(fldG(item,['RequiredDate','ReqDate','Required_x0020_Date','DueDate','NeedByDate','RequiredDate0','Required_x0020_by','RequiredBy'])||''),
-        reqAmt:parseFloat(fldG(item,['ReqAmt','RequestedAmount','RequestedAmt','Requested_x0020_Amount','RequestedAmount0','ReqAmount','Req_x0020_Amt'])||0)||0,
-        apprAmt:parseFloat(fldG(item,['ApprAmt','ApprovedAmount','ApprovedAmt','Approved_x0020_Amount','ApprovedAmount0','ApprAmount','ApprovedAmt0'])||0)||0,
-        rejRsn:(fldG(item,['RejRsn','RejectionReason','RejReason','RejectReason','RejRsn0'])||'').split(';').filter(Boolean),
-        rejCmt:fldG(item,['RejCmt','RejectionComment','RejComment','RejectComment','RejCmt0'])||'',
-        naReason:fldG(item,['NaReason','NAR','NAType','NotApplicableReason','NAR0'])||'',
-        naComment:fldG(item,['NaComment','NAComment','NotApplicableComment','NAComment0'])||'',
+        step:parseInt(fldG(item,['Step','Step0','WorkflowStep','Stage'])||1)||1,
+        pt:fldG(item,['PT','PayType','InvoiceType','PaymentCategory','PaymentType','PT0'])||'',
+        po:fldG(item,['FGCPONumber','PO_x0020_Number','PONumber','PO','PONo','PO_x0020_No','POReference'])||'',
+        payee:fldG(item,['PayeeName','Payee','SupplierName','Supplier','Beneficiary'])||'',
+        paidto:fldG(item,['PaidTo','BankName','PaidToName','Paid_x0020_To','Paid_x0020_to','PaidTo0'])||'',
+        meth:fldG(item,['PaymentMethod','Method','Method0','PayMethod'])||'',
+        inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice'])||'',
+        vat:fldG(item,['VAT','Vat','VATApplicable','VAT_x0020_Applicable'])||'yes',
+        excl:parseFloat(fldG(item,['RequiredAmount','Amount','ExclAmount','NetAmount','AmountExcVAT','InvoiceAmount'])||0)||0,
+        relDate:spDate(fldG(item,['PlannedReleaseDate','ReleaseDate','RelDate','Release_x0020_Date'])||''),
+        reqDate:spDate(fldG(item,['RequiredDate','ReqDate','Required_x0020_Date','DueDate','NeedByDate'])||''),
+        reqAmt:parseFloat(fldG(item,['RequiredAmount','RequestedAmount','ReqAmt','Requested_x0020_Amount'])||0)||0,
+        apprAmt:parseFloat(fldG(item,['ApprovedAmount','ApprAmt','Approved_x0020_Amount','ApprovedAmt'])||0)||0,
+        rejRsn:(fldG(item,['RejRsn','Reason','RejectionReason','RejReason'])||'').split(';').filter(Boolean),
+        rejCmt:fldG(item,['RejCmt','RejectionComment','RejComment'])||'',
+        naReason:fldG(item,['NaReason','NAR','NAType','NotApplicableReason'])||'',
+        naComment:fldG(item,['NaComment','NAComment','NotApplicableComment'])||'',
         docState:{},payments:[],history:[]
       };
       records[ref]=r;
