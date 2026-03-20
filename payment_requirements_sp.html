@@ -854,13 +854,9 @@ function getVatOK(r){
 }
 function getTot(r){
   if(r.type==='internal')return parseFloat(r.apprAmt||r.reqAmt)||0;
-  /* Use SP stored total (RequiredAmount) if available, else calculate */
-  if(r.totAmtSP)return r.totAmtSP;
   return(r.excl||0)*(getVatOK(r)?1.05:1);
 }
 function getVatAmt(r){
-  /* Use SP stored VAT (VATAmount) if available, else calculate */
-  if(r.vatAmtSP)return r.vatAmtSP;
   return getVatOK(r)?(r.excl||0)*0.05:0;
 }
 function getExcl(r){return r.excl||0;}
@@ -3217,7 +3213,7 @@ function loadAllData(){
 }
 
 function loadRequests(){
-  var sel='Id,Title,ReferenceNo,Status,RequestedParty,RequestedDate,RequesterEmail,Description,Payment_x0020_Type,PONumber,SupplierName,PaidTo,PaymentMethod,InvoiceNo,VATApplicable_x003f_,AmountWithoutVAT,VATAmount,RequiredAmount,PlannedReleaseDate,Due_x0020_Date,Reason,Comments';
+  var sel='Id,Title,ReferenceNo,Status,RequestedParty,RequestedDate,RequesterEmail,Description,Payment_x0020_Type,PONumber,SupplierName,PaidTo,PaymentMethod,InvoiceNo,VATApplicable_x003f_,AmountWithoutVAT,PlannedReleaseDate,Due_x0020_Date,Reason,Comments';
   var url=_SP+'/_api/web/lists/getbytitle(\''+_LIST+'\')/items?$top=4999&$orderby=Id+asc&$select='+sel;
   return spGet(url).then(function(data){
     var items=data.value||[];
@@ -3255,8 +3251,6 @@ function loadRequests(){
         inv:fldG(item,['InvoiceNo','InvoiceNum','Invoice_x0020_No','InvoiceNumber','InvNo','Invoice'])||'',
         vat:fldG(item,['VATApplicable_x003f_','VATApplicable','VAT','Vat'])||'yes',
         excl:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
-        vatAmtSP:parseFloat(fldG(item,['VATAmount'])||0)||0,
-        totAmtSP:parseFloat(fldG(item,['RequiredAmount'])||0)||0,
         relDate:spDate(fldG(item,['PlannedReleaseDate','ReleaseDate','RelDate'])||''),
         reqDate:spDate(fldG(item,['Due_x0020_Date','DueDate','RequiredDate','ReqDate'])||''),
         reqAmt:parseFloat(fldG(item,['AmountWithoutVAT'])||0)||0,
@@ -3325,8 +3319,6 @@ function spSaveRecord(r){
     PaymentMethod:r.meth||'',
     InvoiceNo:r.inv||'',
     AmountWithoutVAT:r.excl||0,
-    VATAmount:getVatAmt(r),
-    RequiredAmount:getTot(r),
     PlannedReleaseDate:r.relDate||null,
     Due_x0020_Date:r.reqDate||null,
     Reason:r.rejRsn?r.rejRsn.join(';'):'',
