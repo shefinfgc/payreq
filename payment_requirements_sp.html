@@ -160,8 +160,6 @@ body{font-family:'Segoe UI',system-ui,sans-serif;font-size:12px;background:var(-
   <div id="login-status" style="font-size:11px;color:#6B6962"></div>
 </div>
 
-<div id="sp-field-diag" style="display:none;position:fixed;top:60px;right:16px;z-index:8888;max-height:80vh;overflow-y:auto;max-width:500px"></div>
-
 <div class="topbar">
   <div class="topbar-logo">&#9783; Payment Requirements</div>
   <div class="topbar-nav">
@@ -3215,13 +3213,6 @@ function loadRequests(){
       /* Show first item values so we can identify field names */
       var sample={};fields.forEach(function(k){if(items[0][k]!==null&&items[0][k]!==undefined)sample[k]=items[0][k];});
       console.log('[SP] First item values:',JSON.stringify(sample));
-      /* Visible diagnostic panel */
-      var diag=document.getElementById('sp-field-diag');
-      if(diag){
-        var rows=fields.map(function(k){var v=items[0][k];return'<tr><td style="padding:2px 8px;border-bottom:1px solid #eee;font-weight:600">'+k+'</td><td style="padding:2px 8px;border-bottom:1px solid #eee;color:#555">'+((v===null||v===undefined)?'<em>null</em>':String(v).substring(0,60))+'</td></tr>';}).join('');
-        diag.innerHTML='<div style="background:#fff;border:1px solid #ccc;border-radius:8px;padding:12px;font-size:11px;font-family:monospace"><strong>SP Field Names (first item)</strong> — share this screenshot<br><br><table>'+rows+'</table><button onclick="this.parentNode.parentNode.style.display=\'none\'" style="margin-top:8px;padding:3px 10px;cursor:pointer">Close</button></div>';
-        diag.style.display='block';
-      }
     }
     /* Map SP status string to app status key */
     function spStat(s){
