@@ -3213,8 +3213,7 @@ function loadAllData(){
 }
 
 function loadRequests(){
-  var sel='Id,Title,ReferenceNo,Status,RequestedParty,RequestedDate,RequesterEmail,Description,Payment_x0020_Type,PONumber,SupplierName,PaidTo,PaymentMethod,InvoiceNo,VATApplicable_x003f_,AmountWithoutVAT,PlannedReleaseDate,Due_x0020_Date,Reason,Comments';
-  var url=_SP+'/_api/web/lists/getbytitle(\''+_LIST+'\')/items?$top=4999&$orderby=Id+asc&$select='+sel;
+  var url=_SP+'/_api/web/lists/getbytitle(\''+_LIST+'\')/items?$top=4999&$orderby=Id+asc';
   return spGet(url).then(function(data){
     var items=data.value||[];
     if(items.length>0){
