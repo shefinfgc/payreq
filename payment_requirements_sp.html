@@ -624,9 +624,8 @@ async function getToken(){
     _accessToken = r.accessToken;
     return _accessToken;
   }catch(e){
-    var r = await msalInstance.acquireTokenPopup(Object.assign({},TOKEN_REQUEST,{account:acct}));
-    _accessToken = r.accessToken;
-    return _accessToken;
+    await msalInstance.acquireTokenRedirect(Object.assign({},TOKEN_REQUEST,{account:acct}));
+    throw new Error('Redirecting for token...');
   }
 }
 
@@ -635,10 +634,7 @@ async function doLogin(){
   errEl.style.display='none';
   if(!msalInstance && !initMsal()) return;
   try{
-    var r = await msalInstance.loginPopup(TOKEN_REQUEST);
-    _accessToken = r.accessToken;
-    document.getElementById('login-screen').style.display='none';
-    loadAllData();
+    await msalInstance.loginRedirect(TOKEN_REQUEST);
   }catch(e){
     errEl.textContent='Login failed: '+e.message;
     errEl.style.display='block';
@@ -646,7 +642,7 @@ async function doLogin(){
 }
 
 function doLogout(){
-  if(msalInstance) msalInstance.logoutPopup();
+  if(msalInstance) msalInstance.logoutRedirect();
 }
 
 // ─── SP CONFIG ───────────────────────────────────────────────────────────────
